@@ -13,7 +13,7 @@
 - p.31 line 2. "... we can wrte $x$ as $x = y+r_1 \bmod 1$".
 
 ## Chapter 3
-- p.35. In Theorem 3.1, last sentence, "$E \in \mathscr{F} \longrightarrow E \in \mathscr{F}_0$". The condition is for all events E in the algebra $F_0$.
+- p.35. In Theorem 3.1, last sentence, $E \in \mathscr{F} \longrightarrow E \in \mathscr{F}_0$. The condition is for all events E in the algebra $F_0$.
 
 - p.36. In the proof of Theorem 3.2, line 4, the intersection of  $(-\infty, x_i]$ should be $(-\infty, x]$, not $(-\infty, x_i]$
 
