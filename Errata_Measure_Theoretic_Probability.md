@@ -4,7 +4,7 @@
 
 - p.11. Theorem 1.4. On the right-hand side of the equation, the function $f(\alpha)$ should be $f(x)$.
 
-- p.14. In Example 1.3.2, the function $\alpha_2(x)$ for $x$ between $-1.5$ to $1.5$ is defined as $\int_{-1.5}^x e^{-t^2/2}/\sqrt{2\pi}\, dt$, which is the same as the cumulative distribution function of a standard normal random variable.
+- p.14. In Example 1.3.2, the function $\alpha_2(x)$ for $x$ between $-1.5$ to $1.5$ is defined as $\int_{-1.5}^x e^{-t^2/2}/\sqrt{2\pi} dt$, which is the same as the cumulative distribution function of a standard normal random variable.
 
 ## Chapter 2
 
