@@ -8,6 +8,8 @@
 
 ## Chapter 2
 
+- p.21, line -8, "... it is poosible to construct algebra that is not a $\sigma$-algebra".
+
 - p.28 first line. The interval on the left hand side of the equation is $(-\infty, b]$.
 
 - p.31 line 2. "... we can wrte $x$ as $x = y+r_1 \bmod 1$".
