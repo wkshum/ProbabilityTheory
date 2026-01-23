@@ -136,3 +136,27 @@ theorem diff_mem (F : Set (Set α)) (h : IsSigmaAlgebra F)
   -- Step 4: Prove Bᶜ is in F
   · apply h.compl_mem
     exact hB
+
+-- 5. Symmetric Difference
+-- Strategy: A Δ B = (A \ B) ∪ (B \ A)    
+theorem symmDiff_mem (F : Set (Set α)) (h : IsSigmaAlgebra F) 
+    (A B : Set α) (hA : A ∈ F) (hB : B ∈ F) : 
+    symmDiff A B ∈ F := by
+  
+  -- Step 1: Unfold the definition of symmetric difference
+  -- This changes the goal from `symmDiff A B ∈ F` to `(A \ B) ∪ (B \ A) ∈ F`
+  rw [symmDiff]
+
+  -- Step 2: Apply closure under finite union
+  -- We use the theorem `union_mem` you proved earlier
+  apply union_mem F h
+
+  -- Case 1: Prove (A \ B) ∈ F
+  · apply diff_mem F h -- Apply closure under set difference
+    · exact hA           -- A is in F
+    · exact hB           -- B is in F
+
+  -- Case 2: Prove (B \ A) ∈ F
+  · apply diff_mem F h -- Apply closure under set difference
+    · exact hB           -- B is in F
+    · exact hA           -- A is in F
