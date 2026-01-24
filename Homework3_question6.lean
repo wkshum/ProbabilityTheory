@@ -1,8 +1,7 @@
 /-
 
- Theorem: If S is a semi-algebra, then the collection F of finite disjoint unions of sets in S
-  is an algebra.
-  We also prove that F is the smallest such algebra containing S.
+ Question 6 in Homework 3
+  Semi-Algebra and Algebra of Sets
 
 -/
 
@@ -15,28 +14,43 @@ open Set
 
 open Classical
 
-variable {X : Type*}
-variable (S : Set (Set X))
-
 namespace SemiAlgebraProb
 
--- The definition of a Semi-Algebra  
+variable {X : Type*}
+
+variable (S : Set (Set X))  -- S is a set of sets in X
+
+-- The definition of a Semi-Algebra
+-- A collection S of subsets of X is a semi-algebra if:
+-- (a) empty set is in S and X is in S
+-- (b) S is closed under intersection
+-- (c) for all A in S, Aᶜ is a finite disjoint union of sets in S
+-- The last condition is formulated as:
+--   For all A in S, there exists an n, and a sequence f indexed by 0...n-1
+--   1. such that all sets in the sequence are in S
+--   2. the sets in the sequence are pairwise disjoint, and
+--   3. the union of the sets in the sequence equals the complement of A
 structure IsSemiAlgebra (S : Set (Set X)) : Prop where
   empty_mem : ∅ ∈ S
   univ_mem  : univ ∈ S
   inter_mem : ∀ A B, A ∈ S → B ∈ S → A ∩ B ∈ S
-  -- For all A in S, there exists an n, and a sequence f indexed by 0...n-1
-  -- 1. such that all sets in the sequence are in S
-  -- 2. the sets in the sequence are pairwise disjoint, and
-  -- 3. the union of the sets in the sequence equals the complement of A
   compl_mem :
     ∀ A, A ∈ S → ∃ (n : ℕ) (f : Fin n → Set X),
       (∀ i, f i ∈ S) ∧                   -- 1. All sets are in S
       (∀ i j, i ≠ j → f i ∩ f j = ∅) ∧   -- 2. Explicit Pairwise Disjointness
       Aᶜ = ⋃ i, f i                      -- 3. The union equals the complement
 
+
+
 /-
- Condition c:  
+# Part 1: 
+  Prove that under the assumption of axioms (a) and (b) of a semi-algebra,
+    axioms (c) and (c') are equivalent.
+-/
+
+
+/-
+Define Condition (c):  
   If $A\in\mathcal{S}$ then $A^c$ is a finite disjoint union of sets
   in \(\mathcal{S}\), i.e. there exist integer $n\geq 1$ and 
   pairwise disjoint $B_1,\dots,B_n\in\mathcal{S}$ 
@@ -48,7 +62,8 @@ def Condition_c (S : Set (Set X)) : Prop :=
     (∀ i j, i ≠ j → f i ∩ f j = ∅) ∧ -- i ≠ j implies intersection is empty
     Aᶜ = ⋃ i, f i
 
-/- Condition c' :
+/- 
+Define Condition (c') :
   For $A,B\in\mathcal{S}$, with $A\subset B$, 
   there exists integer $n\geq 1$ and pairwise disjoint 
   $A_1,\ldots, A_n \in \mathcal{S}$ such that 
@@ -61,15 +76,12 @@ def Condition_c_prime (S : Set (Set X)) : Prop :=
       (∀ i j, i ≠ j → f i ∩ f j = ∅) ∧
       B \ A = ⋃ i, f i
 
-/-
-Part 1: Prove that under the assumption of the first three axioms of a semi-algebra,
-  conditions (c) and (c') are equivalent.
--/
+
 theorem conditions_equiv (S : Set (Set X))
     -- (h_empty : ∅ ∈ S)  This axiom is not used in the proof
-    (h_univ : univ ∈ S)
-    (h_inter : ∀ A B, A ∈ S → B ∈ S → A ∩ B ∈ S) :
-    Condition_c S ↔ Condition_c_prime S := by
+    (h_univ : univ ∈ S)  -- assume X is in S
+    (h_inter : ∀ A B, A ∈ S → B ∈ S → A ∩ B ∈ S)  -- assume S is closed under intersection
+     : Condition_c S ↔ Condition_c_prime S := by
   constructor
   · -- Direction: (c) implies (c')
     intro hc A B hA hB hSub
@@ -135,15 +147,234 @@ theorem conditions_equiv (S : Set (Set X))
     rw [compl_eq_univ_diff]
 
 
--- Define an Algebra (closed under complement and finite union)
+/-
+# Part 2
+-/
+
+
+
+/-
+# Part 3
+Show that the collection of sets consdisting of intervals in the form [a,b) is a semi-algebra.
+-/
+
+
+/- 
+The collection of half-open intervals on ℝ with extended real endpoints.
+A set `s` is in this collection if there exist `a` and `b` of type Extended Real,
+ such that `s` consists of all real numbers `x` where `x` (as an EReal) falls in `Ico a b`.
+-/
+def SemiAlgebraIntervals : Set (Set ℝ) :=
+  { s | ∃ (a b : EReal), a ≤ b ∧ s = {x : ℝ | (x : EReal) ∈ Ico a b} }
+
+-- ==========================================================
+-- Lemma 1: The Empty Set is in the collection
+-- ==========================================================
+lemma empty_mem_intervals : ∅ ∈ SemiAlgebraIntervals := by
+  -- We need to find a and b such that the set is empty
+  -- Let's choose a = 0 and b = 0
+  use 0, 0
+  
+  -- We need to prove: ∅ = {x | ↑x ∈ Ico 0 0}
+  -- This is equivalent to proving that for all x, x is NOT in Ico 0 0
+  constructor
+  · norm_num
+  · -- Prove the set is empty
+    ext x
+    simp only [mem_empty_iff_false, mem_setOf_eq, mem_Ico, false_iff]
+    
+    -- Goal: ¬(0 ≤ ↑x ∧ ↑x < 0)
+    -- This is true because ↑x < 0 and 0 ≤ ↑x are contradictory if the bounds were equal,
+    -- but specifically here, Ico a a is always empty because x < a is false if a ≤ x.
+    intro h
+    -- h.1 is 0 ≤ x, h.2 is x < 0.
+    have h_con := lt_of_le_of_lt h.1 h.2
+    -- h_con is 0 < 0, which is false
+    exact lt_irrefl 0 h_con
+
+-- ==========================================================
+-- Lemma 2: The Universe is in the collection
+-- ==========================================================
+lemma univ_mem_intervals : univ ∈ SemiAlgebraIntervals := by
+  use ⊥, ⊤
+  constructor
+  · exact bot_le
+  · -- Ico ⊥ ⊤ covers all reals because ⊥ ≤ x < ⊤ is always true
+    ext x
+    simp only [mem_univ, mem_setOf_eq, mem_Ico, bot_le]
+    -- Goal is now: True ↔ True ∧ ↑x < ⊤
+    simp only [true_and]
+    -- Goal is now: ↑x < ⊤
+    exact Eq.to_iff rfl
+    
+
+-- ==========================================================
+-- Lemma 3: Closed under Intersection
+-- ==========================================================    
+lemma inter_mem_intervals  (A B : Set ℝ) 
+ (hA : A ∈ SemiAlgebraIntervals) (hB : B ∈ SemiAlgebraIntervals) : 
+    A ∩ B ∈ SemiAlgebraIntervals := by
+  -- 1. Unwrap definitions (Note: we now get the inequality hypotheses ha_le, hb_le)
+  rcases hA with ⟨a1, b1, ha_le, rfl⟩
+  rcases hB with ⟨a2, b2, hb_le, rfl⟩
+
+  -- Let's define the standard intersection bounds
+  let L := max a1 a2
+  let R := min b1 b2
+
+  -- 2. Check if the intersection is valid (L ≤ R) or empty (R < L)
+  by_cases h_overlap : L ≤ R
+  · -- CASE 1: Valid Overlap
+    use L, R
+    constructor
+    · exact h_overlap -- satisfies a ≤ b
+    · ext x
+      simp only [mem_inter_iff, mem_setOf_eq, mem_Ico]
+      -- Standard intersection logic:
+      -- x ∈ [a1, b1) ∩ [a2, b2) ↔ x ∈ [max a1 a2, min b1 b2)
+      rw [← mem_Ico, ← mem_Ico, ← mem_inter_iff, Set.Ico_inter_Ico]
+      rfl
+
+  · -- CASE 2: Disjoint (Intersection is empty)
+    -- If R < L, the intersection is empty.
+    -- We must produce a valid interval (a ≤ b) that is empty. [0, 0) works.
+    use 0, 0
+    constructor
+    · exact le_refl 0 -- 0 ≤ 0
+    · ext x
+      simp only [mem_inter_iff, mem_setOf_eq, mem_Ico]
+      
+      -- LHS: Ico a1 b1 ∩ Ico a2 b2
+      rw [← mem_Ico, ← mem_Ico, ← mem_inter_iff, Set.Ico_inter_Ico]
+      
+      -- Since L > R (from negation of h_overlap), LHS is empty
+      rw [not_le] at h_overlap
+      rw [Ico_eq_empty_of_le (le_of_lt h_overlap)]
+      
+      -- RHS: Ico 0 0 is empty
+      rw [← mem_Ico]
+      rw [Ico_self]
+      
+-- ==========================================================
+-- Lemma 4: Complement is Finite Disjoint Union
+-- ==========================================================
+lemma compl_mem_intervals (A : Set ℝ) (hA : A ∈ SemiAlgebraIntervals) :
+    ∃ (n : ℕ) (f : Fin n → Set ℝ),
+      (∀ i, f i ∈ SemiAlgebraIntervals) ∧
+      (∀ i j, i ≠ j → f i ∩ f j = ∅) ∧
+      Aᶜ = ⋃ i, f i := by
+  -- 1. Unwrap the hypothesis
+  rcases hA with ⟨a, b, h_le, rfl⟩
+
+  -- 2. Define the two parts generically
+  -- Part 1: (-∞, a) is Ico ⊥ a
+  -- Part 2: [b, ∞) is Ico b ⊤
+  let f : Fin 2 → Set ℝ := ![
+    {x | (x : EReal) ∈ Ico ⊥ a},
+    {x | (x : EReal) ∈ Ico b ⊤}
+  ]
+  
+  use 2, f
+  
+  constructor
+  · -- Requirement 1: Verify elements are in SemiAlgebraIntervals
+    intro i
+    fin_cases i
+    · -- Case i=0: (-∞, a)
+      -- Is ⊥ ≤ a? Yes, always.
+      use ⊥, a
+      constructor
+      · exact bot_le
+      · rfl
+    · -- Case i=1: [b, ∞)
+      -- Is b ≤ ⊤? Yes, always.
+      use b, ⊤
+      constructor
+      · exact le_top
+      · rfl
+
+  constructor
+  · -- Requirement 2: Verify disjointness
+    intro i j h_neq
+    fin_cases i <;> fin_cases j
+    · contradiction -- 0 ≠ 0 is false
+    
+    · -- Case 0 vs 1: (-∞, a) ∩ [b, ∞)
+      -- Strategy: Prove "For all x, if x is in the intersection, False"
+      rw [Set.eq_empty_iff_forall_notMem]
+      intro x hx
+      
+      -- 1. Unpack membership logic
+      -- simp simplifies f 0, f 1, and intersection
+      simp only [mem_inter_iff] at hx
+      
+      -- hx is now: (⊥ ≤ x ∧ x < a) ∧ (b ≤ x ∧ x < ⊤)
+      rcases hx with ⟨⟨_, h_lt_a⟩, ⟨h_ge_b, _⟩⟩
+      
+      -- 2. Mathematical Contradiction
+      -- Chain: x < a ≤ b ≤ x  =>  x < x
+      have h_con := lt_of_lt_of_le (lt_of_lt_of_le h_lt_a h_le) h_ge_b
+      exact lt_irrefl x h_con
+
+    · -- Case 1 vs 0 (Symmetric)
+      rw [Set.eq_empty_iff_forall_notMem]
+      intro x hx
+      simp only [mem_inter_iff] at hx
+      
+      -- hx is now: (b ≤ x ∧ x < ⊤) ∧ (⊥ ≤ x ∧ x < a)
+      rcases hx with ⟨⟨h_ge_b, _⟩, ⟨_, h_lt_a⟩⟩
+      
+      have h_con := lt_of_lt_of_le (lt_of_lt_of_le h_lt_a h_le) h_ge_b
+      exact lt_irrefl x h_con
+
+    · contradiction -- 1 ≠ 1 is false
+
+  · -- Requirement 3: Union matches Complement
+    ext x
+    -- 1. Unwrap the left side (Complement) explicitly
+    -- This ensures we get ¬(a ≤ x ∧ x < b) instead of an implication
+    simp only [mem_compl_iff, mem_setOf_eq]
+
+    simp [f,  mem_Ico]
+    -- Goal: (a ≤ ↑x → b ≤ ↑x) ↔ ↑x < a ∨ b ≤ ↑x
+    
+    -- 1. Convert implication (P → Q) to (¬P ∨ Q)
+    rw [imp_iff_not_or]
+    
+    -- 2. Convert ¬(a ≤ x) to (x < a)
+    rw [not_le]
+
+    
+
+-- ==========================================================
+-- Theorem: The Collection is a semi-Algebra
+-- ==========================================================
+theorem Intervals_are_SemiAlgebra : IsSemiAlgebra SemiAlgebraIntervals := {
+  empty_mem := empty_mem_intervals
+  univ_mem  := univ_mem_intervals
+  inter_mem := inter_mem_intervals
+  compl_mem := compl_mem_intervals
+}
+
+
+
+
+/-
+# Part 4
+  Let F denote the collection of all finite disjoint unions of sets in S. 
+  Prove that F is an algebra, and that it is the smallest algebra containing S.
+-/
+
+
+-- Formulate the meaning of Algebra as a structure (closed under complement and finite union)
 structure IsAlgebra (A : Set (Set X)) : Prop where
   empty_mem : ∅ ∈ A
   compl_mem : ∀ s, s ∈ A → sᶜ ∈ A
   union_mem : ∀ s t, s ∈ A → t ∈ A → s ∪ t ∈ A
 
-/--
-The collection F consisting of finite disjoint unions of elements of S.
-A set A is in F if there exists a finite disjoint sequence in S whose union is A.
+
+/-
+  Define the meaning of "finite disjoint unions of sets in S"
 -/
 def FiniteDisjointUnions (S : Set (Set X)) : Set (Set X) :=
   { A | ∃ (n : ℕ) (f : Fin n → Set X),
@@ -151,8 +382,12 @@ def FiniteDisjointUnions (S : Set (Set X)) : Set (Set X) :=
         (∀ i j, i ≠ j → f i ∩ f j = ∅) ∧   -- pairwise disjoint
         A = ⋃ i, f i }                     -- A is their union
 
-/-- Lemma: S is a subset of F (since A = A ∪ ∅ ∪ ∅...) -/
-theorem S_subset_F : S ⊆ FiniteDisjointUnions S := by
+-- Define F as the collection of finite disjoint unions of sets in S
+def F := FiniteDisjointUnions S
+
+
+-- Helper lemma 1: S is a subset of F (since A = A ∪ ∅ ∪ ∅...) 
+theorem S_subset_F' : S ⊆ FiniteDisjointUnions S := by
   intro A hA
   -- We represent A as a union of a sequence of length 1: f(0) = A
   use 1, (fun _ ↦ A)
@@ -160,7 +395,10 @@ theorem S_subset_F : S ⊆ FiniteDisjointUnions S := by
   · exact hA
   · exact Eq.symm (iUnion_const A)
 
--- helper lemma
+
+-- Helper lemma 2: The union over Fin (n+1) can be split into 
+-- the union over Fin n and the last element
+-- This helper lemma is used in mathematical induction
 theorem iUnion_fin_succ {α : Type*} {n : ℕ} (f : Fin (n + 1) → Set α) :
   (⋃ (i : Fin (n + 1)), f i) = (⋃ (i : Fin n), f (Fin.castSucc i)) ∪ f (Fin.last n)
     := by 
@@ -193,7 +431,6 @@ theorem iUnion_fin_succ {α : Type*} {n : ℕ} (f : Fin (n + 1) → Set α) :
     | inr hxR =>
         exact mem_iUnion.2 ⟨Fin.last n, hxR⟩
   
-
 /--
 The "Smallest" property:
 If B is any algebra containing S, then B contains all finite disjoint unions of S.
@@ -234,7 +471,7 @@ theorem F_is_smallest (B : Set (Set X)) (h_alg : IsAlgebra B) (h_sub : S ⊆ B) 
       apply h_sub
       exact hf_in_S (Fin.last k)
 
-
+-- Prove that F is closed under intersection
 lemma F_inter_mem (h_semi : IsSemiAlgebra S) :
     ∀ A B, A ∈ FiniteDisjointUnions S → B ∈ FiniteDisjointUnions S →
     A ∩ B ∈ FiniteDisjointUnions S := by
@@ -309,7 +546,7 @@ lemma F_inter_mem (h_semi : IsSemiAlgebra S) :
       · exact mem_iUnion.2 ⟨(e k).2, hx_g⟩
 
 
-
+-- Prove that if F is closed under complement
 lemma F_compl_mem (h_semi : IsSemiAlgebra S) :
     ∀ s, s ∈ FiniteDisjointUnions S → sᶜ ∈ FiniteDisjointUnions S := by
   
@@ -380,7 +617,4 @@ theorem F_is_algebra (h_semi : IsSemiAlgebra S) :
   
   exact ⟨empty_mem, F_compl_mem S h_semi, union_mem⟩
 
-
 end SemiAlgebraProb
-  
-
