@@ -41,9 +41,16 @@ structure IsSemiAlgebra (S : Set (Set X)) : Prop where
       Aᶜ = ⋃ i, f i                      -- 3. The union equals the complement
 
 
+-- Formulate the meaning of Algebra as a structure (closed under complement and finite union)
+structure IsAlgebra (A : Set (Set X)) : Prop where
+  empty_mem : ∅ ∈ A
+  compl_mem : ∀ s, s ∈ A → sᶜ ∈ A
+  union_mem : ∀ s t, s ∈ A → t ∈ A → s ∪ t ∈ A
+
+
 
 /-
-# Part 1: 
+### Part 1: 
   Prove that under the assumption of axioms (a) and (b) of a semi-algebra,
     axioms (c) and (c') are equivalent.
 -/
@@ -76,8 +83,87 @@ def Condition_c_prime (S : Set (Set X)) : Prop :=
       (∀ i j, i ≠ j → f i ∩ f j = ∅) ∧
       B \ A = ⋃ i, f i
 
+/-
+Solution 1. More mathematically styled proof
+-/
+theorem conditions_equiv
+    (S : Set (Set X))
+    (h_univ : univ ∈ S)
+    (h_inter : ∀ A B, A ∈ S → B ∈ S → A ∩ B ∈ S) :
+    Condition_c S ↔ Condition_c_prime S :=
+by
+  constructor
 
-theorem conditions_equiv (S : Set (Set X))
+    --------------------------------------------------------------------
+    -- (c) ⇒ (c′)
+    --------------------------------------------------------------------
+  · intro hc
+    refine fun A B hA hB hAB => ?_
+
+    -- Apply condition (c) to A to decompose Aᶜ
+    obtain ⟨n, f, hfS, hf_disj, hAcompl⟩ := hc A hA
+
+    -- Define g_i = B ∩ f_i
+    let g : Fin n → Set X := fun i => B ∩ f i
+    
+    refine ⟨n, g, ?_, ?_, ?_⟩
+
+    --------------------------------------------------------------------
+    -- 1. Each g_i is in S
+    --------------------------------------------------------------------
+    · intro i
+      exact h_inter B (f i) hB (hfS i)
+
+    --------------------------------------------------------------------
+    -- 2. The g_i are pairwise disjoint
+    --------------------------------------------------------------------
+    · intro i j hij
+      have hdisj : f i ∩ f j = ∅ := hf_disj i j hij
+      calc
+        g i ∩ g j
+            = (B ∩ f i) ∩ (B ∩ f j) := rfl
+        _   = B ∩ (f i ∩ f j) := by
+                ext x; constructor <;> intro hx
+                · rcases hx with ⟨⟨hxB, hxi⟩, ⟨_, hxj⟩⟩
+                  exact ⟨hxB, ⟨hxi, hxj⟩⟩
+                · rcases hx with ⟨hxB, ⟨hxi, hxj⟩⟩
+                  exact ⟨⟨hxB, hxi⟩, ⟨hxB, hxj⟩⟩
+        _   = B ∩ ∅ := by simp [hdisj]
+        _   = ∅ := by simp
+
+    --------------------------------------------------------------------
+    -- 3. The union of g_i equals B \ A
+    --------------------------------------------------------------------
+    · have : B \ A = B ∩ Aᶜ := by ext x; simp [diff_eq]
+      calc
+        B \ A
+            = B ∩ Aᶜ := this
+        _   = B ∩ (⋃ i, f i) := by simp [hAcompl]
+        _   = ⋃ i, (B ∩ f i) := by simp [inter_iUnion]
+        _   = ⋃ i, g i := rfl
+
+
+  --------------------------------------------------------------------
+  -- (c′) ⇒ (c)
+  --------------------------------------------------------------------
+  · intro hc' A hA
+
+    -- A ⊆ univ, so apply (c′) to (A, univ)
+    have hA_sub : A ⊆ univ := subset_univ A
+    obtain ⟨n, f, hfS, hf_disj, hdiff⟩ :=
+      hc' A univ hA h_univ hA_sub
+
+    refine ⟨n, f, hfS, hf_disj, ?_⟩
+
+    -- Convert X \ A to Aᶜ
+    have : univ \ A = Aᶜ := by ext x; simp [compl_eq_univ_diff]
+    simpa [this] using hdiff
+
+
+/-
+Second solution: More detailed proof with comments
+-/
+theorem conditions_equiv' (S : Set (Set X))
     -- (h_empty : ∅ ∈ S)  This axiom is not used in the proof
     (h_univ : univ ∈ S)  -- assume X is in S
     (h_inter : ∀ A B, A ∈ S → B ∈ S → A ∩ B ∈ S)  -- assume S is closed under intersection
@@ -148,13 +234,187 @@ theorem conditions_equiv (S : Set (Set X))
 
 
 /-
-# Part 2
+### Part 2
 -/
 
+namespace semi_algebra_part2
+
+/-- The underlying space with 3 elements. -/
+abbrev X3 : Type := Fin 3
+
+/-- Names for the three points. -/
+def a : X3 := 0
+def b : X3 := 1
+def c : X3 := 2
+
+/-- The collection `S = {∅, univ, {a}, {b}, {c}}` as a `Set (Set X3)`. -/
+def T : Set (Set X3) :=
+  {s | s = (∅ : Set X3) ∨ s = Set.univ ∨ s = {a} ∨ s = {b} ∨ s = {c}}
+
+-- Empty set is in T
+lemma T_empty_mem : (∅ : Set X3) ∈ T := by
+  simp [T]
+
+-- X is in T
+lemma T_univ_mem : (univ : Set X3) ∈ T := by
+  simp [T]
+
+-- T is closed under intersection
+lemma T_inter_mem : ∀ s t : Set X3, s ∈ T → t ∈ T → s ∩ t ∈ T := by
+  intro s t hs ht
+  rcases hs with rfl | rfl | rfl | rfl | rfl <;>
+  rcases ht with rfl | rfl | rfl | rfl | rfl <;>
+  simp [T, a, b, c]
+
+-- Show that if A is int T, then the complement of A 
+-- can be expressed as a finite disjoint union of sets in T
+theorem T_compl_mem :
+    ∀ A, A ∈ T → ∃ (n : ℕ) (f : Fin n → Set X3),
+      (∀ i, f i ∈ T) ∧
+      (∀ i j, i ≠ j → f i ∩ f j = ∅) ∧
+      Aᶜ = ⋃ i, f i := by
+  intro A hA
+  -- Unfold T and split into the 5 cases
+  simp only [T, Set.mem_setOf_eq] at hA
+  rcases hA with rfl | rfl | rfl | rfl | rfl
+  
+  -- Case 1: A = ∅. Complement is Univ.
+  · refine ⟨1, fun _ ↦ univ, ?_, ?_, ?_⟩
+    · simp [T] -- Membership
+    · simp       -- Disjointness (vacuous for n=1)
+    · exact toFinset_inj.mp rfl       
+
+  -- Case 2: A = Univ. Complement is ∅.
+  · refine ⟨0, fun _ ↦ ∅, ?_, ?_, ?_⟩
+    · simp       -- Membership (vacuous)
+    · simp       -- Disjointness (vacuous)
+    · simp       -- Union
+
+  -- Case 3: A = {a}. Complement is {b} ∪ {c}.
+  · refine ⟨2, fun i ↦ if i = 0 then {b} else {c}, ?_, ?_, ?_⟩
+    · -- 1. Membership
+      intro i; fin_cases i <;> simp [T]
+    · -- 2. Disjointness
+      intro i j hij
+      fin_cases i <;> fin_cases j
+      · contradiction -- 0 ≠ 0 is false
+      · -- {b} ∩ {c} = ∅
+        simp [b, c]
+      · -- {c} ∩ {b} = ∅
+        simp [b, c, Set.inter_comm]
+      · contradiction
+    · -- 3. Union equals complement
+      ext x
+      -- We check every element x ∈ {0,1,2}
+      fin_cases x
+      · -- x = a
+        simp [a, b, c]
+      · -- x = b
+        simp [a, b, c]
+      · -- x = c
+        simp [a, b, c]
+
+  -- Case 4: A = {b}. Complement is {a} ∪ {c}.
+  · refine ⟨2, fun i ↦ if i = 0 then {a} else {c}, ?_, ?_, ?_⟩
+    · intro i; fin_cases i <;> simp [T]
+    · intro i j hij
+      fin_cases i <;> fin_cases j
+      · contradiction
+      · simp [a, c]
+      · simp [a, c, Set.inter_comm]
+      · contradiction
+    · ext x
+      fin_cases x
+      · simp [a, b, c]
+      · simp [a, b, c]
+      · simp [a, b, c]
+
+  -- Case 5: A = {c}. Complement is {a} ∪ {b}.
+  · refine ⟨2, fun i ↦ if i = 0 then {a} else {b}, ?_, ?_, ?_⟩
+    · intro i; fin_cases i <;> simp [T]
+    · intro i j hij
+      fin_cases i <;> fin_cases j
+      · contradiction
+      · simp [a, b]
+      · simp [a, b, Set.inter_comm]
+      · contradiction
+    · ext x
+      fin_cases x
+      · simp [a, b, c]
+      · simp [a, b, c]
+      · simp [a, b, c]
+
+
+/- 
+  Final Theorem: T is a Semi-Algebra 
+-/
+theorem T_is_semi_algebra : IsSemiAlgebra T :=
+  { empty_mem := T_empty_mem
+    univ_mem  := T_univ_mem
+    inter_mem := T_inter_mem
+    compl_mem := T_compl_mem }
+
+/-- Lemma: {a} ∪ {b} is not in T. -/
+lemma ab_union_notin_T : ({a} ∪ {b} : Set X3) ∉ T := by
+  intro h
+  -- Unfold T to see the 5 possible cases for what {a} ∪ {b} could be equal to
+  simp [T] at h
+  rcases h with h_eq | h_eq | h_eq | h_eq | h_eq
+  
+  · -- Case 1: {a} ∪ {b} = ∅
+    -- Contradiction: a is in the union but not in empty
+    have : a ∈ (∅ : Set X3) := by 
+      rw [← h_eq] -- Change goal to: a ∈ {a} ∪ {b}
+      simp    
+    simp [a] at this
+
+  · -- Case 2: {a} ∪ {b} = univ
+    have : c ∈ ({a} ∪ {b} : Set X3) := by 
+      simp [h_eq]   -- Replace {a} ∪ {b} with univ
+    simp [a, b, c] at this
+
+  · -- Case 3: {a} ∪ {b} = {a}
+    -- Contradiction: b is in the union but not in {a}
+    have : b ∈ ({a} : Set X3) := by
+      rw [← h_eq] -- Change goal to: b ∈ {a} ∪ {b}
+      simp 
+    simp [a, b] at this
+
+  · -- Case 4: {a} ∪ {b} = {b}
+    -- Contradiction: a is in the union but not in {b}
+    have : a ∈ ({b} : Set X3) := by
+      rw [← h_eq] -- Change goal to: a ∈ {a} ∪ {b}
+      simp    
+    simp [a, b] at this
+
+  · -- Case 5: {a} ∪ {b} = {c}
+    -- Contradiction: a is in the union but not in {c}
+    have : a ∈ ({c} : Set X3) := by 
+      rw [← h_eq] -- Change goal to: a ∈ {a} ∪ {b}
+      simp    
+    simp [a, c] at this
+
+
+/- Show that T is not an algebra
+-/
+theorem T_not_algebra : ¬ IsAlgebra T := by
+  -- Assume T is an algebra (for the sake of contradiction)
+  intro h_alg
+  
+  -- Since T is an algebra, it must contain {a} ∪ {b}
+  have h_union_in_T : ({a} ∪ {b} : Set X3) ∈ T := by
+    apply h_alg.union_mem
+    · simp [T] -- Prove {a} ∈ T
+    · simp [T] -- Prove {b} ∈ T
+
+  -- This contradicts our previous lemma
+  exact ab_union_notin_T h_union_in_T
+
+end semi_algebra_part2
 
 
 /-
-# Part 3
+### Part 3
 Show that the collection of sets consdisting of intervals in the form [a,b) is a semi-algebra.
 -/
 
@@ -195,15 +455,14 @@ lemma empty_mem_intervals : ∅ ∈ SemiAlgebraIntervals := by
 -- ==========================================================
 -- Lemma 2: The Universe is in the collection
 -- ==========================================================
+-- Use the interval [-∞, +∞)
 lemma univ_mem_intervals : univ ∈ SemiAlgebraIntervals := by
   use ⊥, ⊤
   constructor
   · exact bot_le
   · -- Ico ⊥ ⊤ covers all reals because ⊥ ≤ x < ⊤ is always true
     ext x
-    simp only [mem_univ, mem_setOf_eq, mem_Ico, bot_le]
-    -- Goal is now: True ↔ True ∧ ↑x < ⊤
-    simp only [true_and]
+    simp only [mem_univ, mem_setOf_eq, mem_Ico, bot_le, true_and]
     -- Goal is now: ↑x < ⊤
     exact Eq.to_iff rfl
     
@@ -335,7 +594,9 @@ lemma compl_mem_intervals (A : Set ℝ) (hA : A ∈ SemiAlgebraIntervals) :
     -- This ensures we get ¬(a ≤ x ∧ x < b) instead of an implication
     simp only [mem_compl_iff, mem_setOf_eq]
 
-    simp [f,  mem_Ico]
+    simp only [mem_Ico, not_and, not_lt, Ico_bot, mem_Iio, EReal.coe_lt_top, and_true, mem_iUnion,
+      Fin.exists_fin_two, Fin.isValue, Matrix.cons_val_zero, mem_setOf_eq, Matrix.cons_val_one,
+      Matrix.cons_val_fin_one, f]
     -- Goal: (a ≤ ↑x → b ≤ ↑x) ↔ ↑x < a ∨ b ≤ ↑x
     
     -- 1. Convert implication (P → Q) to (¬P ∨ Q)
@@ -344,10 +605,8 @@ lemma compl_mem_intervals (A : Set ℝ) (hA : A ∈ SemiAlgebraIntervals) :
     -- 2. Convert ¬(a ≤ x) to (x < a)
     rw [not_le]
 
-    
-
 -- ==========================================================
--- Theorem: The Collection is a semi-Algebra
+-- In summary: The Collection is a semi-Algebra
 -- ==========================================================
 theorem Intervals_are_SemiAlgebra : IsSemiAlgebra SemiAlgebraIntervals := {
   empty_mem := empty_mem_intervals
@@ -360,17 +619,11 @@ theorem Intervals_are_SemiAlgebra : IsSemiAlgebra SemiAlgebraIntervals := {
 
 
 /-
-# Part 4
+### Part 4
   Let F denote the collection of all finite disjoint unions of sets in S. 
   Prove that F is an algebra, and that it is the smallest algebra containing S.
 -/
 
-
--- Formulate the meaning of Algebra as a structure (closed under complement and finite union)
-structure IsAlgebra (A : Set (Set X)) : Prop where
-  empty_mem : ∅ ∈ A
-  compl_mem : ∀ s, s ∈ A → sᶜ ∈ A
-  union_mem : ∀ s t, s ∈ A → t ∈ A → s ∪ t ∈ A
 
 
 /-
@@ -391,7 +644,9 @@ theorem S_subset_F' : S ⊆ FiniteDisjointUnions S := by
   intro A hA
   -- We represent A as a union of a sequence of length 1: f(0) = A
   use 1, (fun _ ↦ A)
-  simp; constructor
+  simp only [forall_const, ne_eq, inter_self, Fin.forall_fin_one, Fin.isValue, not_true_eq_false,
+    IsEmpty.forall_iff, true_and]
+  constructor
   · exact hA
   · exact Eq.symm (iUnion_const A)
 
@@ -444,7 +699,7 @@ theorem F_is_smallest (B : Set (Set X)) (h_alg : IsAlgebra B) (h_sub : S ⊆ B) 
   induction n with 
   | zero =>
     -- Case n=0: Union over Fin 0 is empty
-    simp
+    simp only [iUnion_of_empty]
     exact h_alg.empty_mem
   | succ k ih =>
     -- Case n = k+1
@@ -534,7 +789,7 @@ lemma F_inter_mem (h_semi : IsSemiAlgebra S) :
       rcases mem_iUnion.1 hxB with ⟨j, hj⟩
       let k : Fin (n * m) := e.symm ⟨i, j⟩
       refine mem_iUnion.2 ⟨k, ?_⟩
-      have hk : e k = ⟨i, j⟩ := by simp [k]
+      have hk : e k = ⟨i, j⟩ := by simp only [Equiv.apply_symm_apply, k]
       have : x ∈ f i ∩ g j := ⟨hi, hj⟩
       simpa [h, hk] using this
     · intro hx
@@ -616,5 +871,6 @@ theorem F_is_algebra (h_semi : IsSemiAlgebra S) :
     simpa [Set.compl_inter, compl_compl] using hCompl  
   
   exact ⟨empty_mem, F_compl_mem S h_semi, union_mem⟩
+
 
 end SemiAlgebraProb
