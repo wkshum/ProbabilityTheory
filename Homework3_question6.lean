@@ -7,9 +7,6 @@
 
 import Mathlib.Tactic
 
-set_option linter.style.commandStart false
-set_option linter.style.openClassical false
-
 open Set
 
 open Classical
