@@ -346,13 +346,15 @@ theorem T_compl_mem :
 
 
 /- 
-  Final Theorem: T is a Semi-Algebra 
+  Theorem: T is a Semi-Algebra 
 -/
 theorem T_is_semi_algebra : IsSemiAlgebra T :=
   { empty_mem := T_empty_mem
     univ_mem  := T_univ_mem
     inter_mem := T_inter_mem
     compl_mem := T_compl_mem }
+
+
 
 /-- Lemma: {a} ∪ {b} is not in T. -/
 lemma ab_union_notin_T : ({a} ∪ {b} : Set X3) ∉ T := by
@@ -464,7 +466,11 @@ lemma univ_mem_intervals : univ ∈ SemiAlgebraIntervals := by
     ext x
     simp only [mem_univ, mem_setOf_eq, mem_Ico, bot_le, true_and]
     -- Goal is now: ↑x < ⊤
-    exact Eq.to_iff rfl
+    constructor
+    · intro _; simp 
+    · intro _; trivial
+
+      
     
 
 -- ==========================================================
@@ -573,7 +579,9 @@ lemma compl_mem_intervals (A : Set ℝ) (hA : A ∈ SemiAlgebraIntervals) :
       -- 2. Mathematical Contradiction
       -- Chain: x < a ≤ b ≤ x  =>  x < x
       have h_con := lt_of_lt_of_le (lt_of_lt_of_le h_lt_a h_le) h_ge_b
-      exact lt_irrefl x h_con
+      have h_real : x < x := by
+        simp at h_con
+      exact lt_irrefl x h_real      
 
     · -- Case 1 vs 0 (Symmetric)
       rw [Set.eq_empty_iff_forall_notMem]
@@ -584,8 +592,10 @@ lemma compl_mem_intervals (A : Set ℝ) (hA : A ∈ SemiAlgebraIntervals) :
       rcases hx with ⟨⟨h_ge_b, _⟩, ⟨_, h_lt_a⟩⟩
       
       have h_con := lt_of_lt_of_le (lt_of_lt_of_le h_lt_a h_le) h_ge_b
-      exact lt_irrefl x h_con
-
+      have h_real : x < x := by
+        simp at h_con      
+      exact lt_irrefl x h_real      
+      
     · contradiction -- 1 ≠ 1 is false
 
   · -- Requirement 3: Union matches Complement
