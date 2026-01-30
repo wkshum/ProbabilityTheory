@@ -14,7 +14,8 @@ noncomputable section Vitali_set
 namespace Vitali_set
 
 open Classical  -- It is essential to use choice axioms here
-open Rat 
+open Rat
+open Set
 
 /-- `I` is the closed unit interval `[0,1]` in `ℝ`. 
   This is the domain on which the Vitali construction is carried out.
