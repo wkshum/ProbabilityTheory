@@ -586,8 +586,12 @@ lemma measure_Ico_one (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) :
 
 /-- **There is no Vitali measure.**
 
-Assume `m` satisfies the Vitali axioms.  
-Let `V` be a Vitali set and `Vₙ = V + qₙ` its rational translates.
+Assume `m` is a set function that can take any subsets of [0,1] as input and return a number in [0,∞],
+satisfying the Vitali axioms.  
+
+Suppose rational numbers in [0,1) is enumerated as q0, q1, q2, ...
+
+Let `V` be a Vitali set and `Vₙ = V + qₙ` its rational translates. for each integer n >= 0.
 
 Key facts:
 * the sets `Vₙ` are pairwise disjoint,
