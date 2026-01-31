@@ -1,4 +1,4 @@
-/-- Vitali set
+/- Vitali set
 
   Proof of Theorem 2.9 in textbook
 
