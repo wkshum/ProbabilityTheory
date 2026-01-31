@@ -10,6 +10,9 @@ and return a nonnegative real number as output, such that it satisfies
 * translation invariance (with wrapping around)
 * the output of interval [a,b] is b-a, for all 0<=a<b<=1
 
+In the proof below, we refer to such a measure as `Vitali measure`. THe conditions are 
+encoded in the definition `IsVitaliMeasure`. The proof is divided into a number of lemmas.
+The main theorem is at the end of the file.
 -/
 
 import Mathlib.Tactic
