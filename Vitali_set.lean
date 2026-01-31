@@ -1,6 +1,15 @@
 /-
   Vitali set
   Proof of Theorem 2.9 in textbook
+
+There is no set function m that can accept all subsets of [0,1] as input
+and return a nonnegative real number as output, such that it satisfies
+
+* monotonicity
+* countable additivity
+* translation invariance (with wrapping around)
+* the output of interval [a,b] is b-a, for all 0<=a<b<=1
+
 -/
 
 import Mathlib.Tactic
