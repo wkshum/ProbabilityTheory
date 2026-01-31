@@ -1,5 +1,5 @@
-/-
-  Vitali set
+/-- Vitali set
+
   Proof of Theorem 2.9 in textbook
 
 There is no set function m that can accept all subsets of [0,1] as input
