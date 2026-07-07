@@ -6,6 +6,7 @@ lake-packages/
 lake-manifest.json
 
 .vscode/
+.github/
 
 *.olean
 *.trace
