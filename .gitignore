@@ -1,0 +1,14 @@
+# lake build directory
+/.lake
+build/
+.cache/
+lake-packages/
+lake-manifest.json
+
+.vscode/
+
+*.olean
+*.trace
+*.hash
+.DS_Store
+Thumbs.db
