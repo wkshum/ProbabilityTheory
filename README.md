@@ -49,3 +49,12 @@ A bridge is an interface, not a workaround for a single proof.
 
 ---
 
+### Content
+
+
+| Chapter 1 | Beyond discrete and continuous random variables  |                                                                                    |
+| --------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Section 1 | Discrete and continuous random variables         | not formalized                                                                     |
+| Section 3 | Random variables of mixed type and singular type | Def 1.1, Ex. 1.2.1, Ex 1.2.2, Ex 1.2.3.                                            |
+| Section 3 | Riemann-Stieltjes integrals                      | Def 1.2, Def 1.3, Def 1.4, Thm 1.1, Thm 1.2, Thm 1.3, Thm 1.4, Ex 1.3.1, Ex. 1.3.2 |
+| Section 4 | Problems                                         | 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10                                  |
