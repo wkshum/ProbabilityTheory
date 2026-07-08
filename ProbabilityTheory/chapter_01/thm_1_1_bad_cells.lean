@@ -1,4 +1,4 @@
-import ProbabilityTheory.thm_1_1_oscillation_basic
+import ProbabilityTheory.chapter_01.thm_1_1_oscillation_basic
 
 open Finset BigOperators
 open MeasureTheory Set Topology

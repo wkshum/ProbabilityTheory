@@ -1,4 +1,4 @@
-import ToyApollo.Output.thm_1_1_bad_cells
+import ProbabilityTheory.chapter_01.thm_1_1_bad_cells
 
 open Finset BigOperators
 open MeasureTheory Set Topology

@@ -1,4 +1,4 @@
-import ToyApollo.Output.thm_1_1_common_refinement_points
+import ProbabilityTheory.chapter_01.thm_1_1_common_refinement_points
 
 open Finset BigOperators
 open MeasureTheory Set Topology

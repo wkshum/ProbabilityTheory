@@ -1,4 +1,4 @@
-import ToyApollo.Output.thm_1_1_darboux_gap
+import ProbabilityTheory.chapter_01.thm_1_1_darboux_gap
 
 open Finset BigOperators
 open MeasureTheory Set Topology

@@ -1,11 +1,13 @@
 import Mathlib
-import ToyApollo.Output.def_1_1
+import ProbabilityTheory.chapter_01.def_1_1
 
-/-
+/- # Cantor distribution
+
 TASK ID: ex_1_2_3
 TYPE: Example_Proof
 SOURCE PLAN: 37_chap1_mixed_singular
 TASK CONTENT:
+
 \textbf{Example 1.2.3 (Cantor Distribution)} \\
 Consider the infinite series
 \[
@@ -70,9 +72,13 @@ def ex123B (n : ℕ) (ω : ex123Ω) : Bool :=
   ω n
 
 lemma ex123B_measurable (n : ℕ) : Measurable (ex123B n) := by
-  simpa [ex123B] using measurable_pi_apply n
+  change Measurable (fun ω : ℕ → Bool => ω n)
+  exact measurable_pi_apply n
 
 theorem ex123B_independent : ProbabilityTheory.iIndepFun ex123B ex123P := by
+  change ProbabilityTheory.iIndepFun
+    (fun n (ω : ℕ → Bool) => ω n)
+    (Measure.infinitePi fun _ : ℕ => ex123FairCoin)
   simpa [ex123B, ex123P] using
     (ProbabilityTheory.iIndepFun_infinitePi (ι := ℕ) (𝓧 := fun _ => Bool)
       (Ω := fun _ => Bool) (P := fun _ : ℕ => ex123FairCoin)
@@ -107,11 +113,18 @@ theorem ex123CDF_def (u : ℝ) :
 theorem ex123U_series (ω : ex123Ω) :
     HasSum (fun n : ℕ => ex123R n ω / (3 : ℝ) ^ (n + 1)) (ex123U ω) := by
   convert (@summable_ofDigitsTerm 3 (ex123Digits ω)).hasSum using 1
-  ext n
-  by_cases h : ω n <;> simp [ex123R, ex123B, ex123Digits, Real.ofDigitsTerm, h, div_eq_mul_inv]
+  · ext n
+    by_cases h : ω n <;>
+      simp [ex123R, ex123B, ex123Digits, Real.ofDigitsTerm, h, div_eq_mul_inv]
+  · simp [ex123U, Real.ofDigits]
+
 
 lemma ex123U_mem_cantorSet (ω : ex123Ω) : ex123U ω ∈ cantorSet := by
-  simpa [ex123U, ex123Digits] using ofDigits_bool_to_fin_three_mem_cantorSet ω
+  unfold ex123U
+  convert ofDigits_bool_to_fin_three_mem_cantorSet ω using 2
+  ext i
+  by_cases h : ω i <;>
+    simp [ex123Digits, h]
 
 theorem ex123U_mem_unit (ω : ex123Ω) : ex123U ω ∈ Set.Icc (0 : ℝ) 1 :=
   cantorSet_subset_unitInterval (ex123U_mem_cantorSet ω)
@@ -392,6 +405,7 @@ lemma ex123_volume_preCantorSet_le (n : ℕ) :
       ex123_volume_image_add2_div3_of_measurable (preCantorSet n)
         (isClosed_preCantorSet n).measurableSet]
     convert mul_le_mul_right ih (ENNReal.ofReal (1 / 3) + ENNReal.ofReal (1 / 3)) using 1
+    · rfl
     · ring
     rw [← ENNReal.ofReal_add] <;> norm_num
     ring
