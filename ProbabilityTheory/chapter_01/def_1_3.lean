@@ -1,4 +1,6 @@
-import Mathlib
+import Mathlib.MeasureTheory.Measure.Stieltjes
+import Mathlib.MeasureTheory.Integral.Bochner.ContinuousLinearMap
+import Mathlib.MeasureTheory.Measure.Haar.OfBasis
 
 open MeasureTheory
 open scoped ENNReal

@@ -1,4 +1,6 @@
-import Mathlib
+import Mathlib.MeasureTheory.Measure.Haar.OfBasis
+import Mathlib.Analysis.InnerProductSpace.PiL2
+import Mathlib.Analysis.Normed.Lp.MeasurableSpace
 
 /-
 # Definition 1.1: Singular Random Variable
@@ -16,7 +18,7 @@ $\mathbf{X}$ with values in $\mathbb{R}^n$ is called \textit{singular}
 -/
 
 /-
-We may need to add the hypothesis `Measurable X`
+We skip the hypothesis `Measurable X`
 to the definition. Right now, it is defined
 for any function X, not just for measurable function.
 -/
@@ -31,12 +33,12 @@ def IsSingularRealRandomVariable {Ω : Type*}
     Prop :=
   ∃ S : Set ℝ, volume S = 0 ∧ P (X ⁻¹' S) = 1
 
+
 /-- A random vector is singular if it is supported with probability `1`
 on a subset of Euclidean space with volume `0`. -/
 def IsSingularRandomVector {Ω : Type*}
   [MeasurableSpace Ω] {n : ℕ}
     (P : Measure Ω) (X : Ω → EuclideanSpace ℝ (Fin n)) : Prop :=
-  -- Measurable X ∧
   ∃ S : Set (EuclideanSpace ℝ (Fin n)), volume S = 0 ∧ P (X ⁻¹' S) = 1
 
 /--  ## Definition 1.1 (Singular Random Variable)

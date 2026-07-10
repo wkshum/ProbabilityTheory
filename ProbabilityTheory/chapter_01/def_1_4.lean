@@ -1,4 +1,3 @@
-import Mathlib
 import ProbabilityTheory.chapter_01.def_1_2
 
 /- # Improper Riemann-Stieltjes integrals
