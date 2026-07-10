@@ -29,7 +29,6 @@ with probability `1`on a set of Lebesgue measure `0`.
 def IsSingularRealRandomVariable {Ω : Type*}
   [MeasurableSpace Ω] (P : Measure Ω) (X : Ω → ℝ) :
     Prop :=
-  -- Measurable X ∧
   ∃ S : Set ℝ, volume S = 0 ∧ P (X ⁻¹' S) = 1
 
 /-- A random vector is singular if it is supported with probability `1`
@@ -45,5 +44,4 @@ def IsSingularRandomVector {Ω : Type*}
 -/
 def def_1_1 {Ω : Type*}
   [MeasurableSpace Ω] (P : Measure Ω) (X : Ω → ℝ) : Prop :=
-  -- Measurable X ∧
   IsSingularRealRandomVariable P X
