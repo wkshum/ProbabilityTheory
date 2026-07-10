@@ -1,10 +1,9 @@
-import Mathlib.Analysis.InnerProductSpace.Basic
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
 
-open Finset BigOperators
-
+open scoped BigOperators Pointwise
+open Finset
 open Set
-open scoped Pointwise
-open scoped Classical
 
 
 noncomputable section
@@ -89,8 +88,6 @@ is the infimum of function `f` in the i-th subinterval
 def lowerStep {a b : ℝ} (P : Partition a b) (f : ℝ → ℝ) (i : Fin P.n) : ℝ :=
   sInf (f '' Partition.subinterval P i)
 
-
-open scoped BigOperators
 
 /-- A *tagged* Riemann-Stieltjes sum over a partition is a sum
 \sum_i f(t_i) ( alpha(x_{i+1}) - alpha(x_{i}) )
@@ -1469,8 +1466,16 @@ end DarbouxRS
 
 
 
-/-
- # Theorem 1.2 part 1
+/--
+Constructs the Riemann-Stieltjes integral witness for the sum of two integrable functions.
+
+Given that `f` and `g` are Riemann-Stieltjes integrable with respect to `alpha`,
+this definition bundles the exact limit value `(∫ f dα) + (∫ g dα)` together with
+the formal proofs that both the Darboux (upper/lower) limits and the tagged limits
+of `f + g` converge to this combined sum.
+
+This relies on the subadditivity and superadditivity of partition sums established
+in the core lemmas.
 -/
 noncomputable def rsIntegralWitness_integrand_add {f g alpha : ℝ → ℝ} {a b : ℝ}
     (hf : RSIntegrable f alpha a b)
@@ -1484,12 +1489,24 @@ noncomputable def rsIntegralWitness_integrand_add {f g alpha : ℝ → ℝ} {a b
     DarbouxRS.taggedCommonLimit_integrand_add
       (rsIntegral_spec hf) (rsIntegral_spec hg)
 
+/--
+The Riemann-Stieltjes integral is additive with respect to the integrand.
+
+If `f` and `g` are Riemann-Stieltjes integrable with respect to `alpha` on `[a, b]`,
+then their pointwise sum `f + g` is also Riemann-Stieltjes integrable on `[a, b]`.
+
+This theorem wraps the explicit limit constructed in `rsIntegralWitness_integrand_add`
+into the existential `Prop` asserting integrability.
+-/
 noncomputable def rsIntegrable_integrand_add {f g alpha : ℝ → ℝ} {a b : ℝ}
     (hf : RSIntegrable f alpha a b)
     (hg : RSIntegrable g alpha a b) :
     RSIntegrable (fun x => f x + g x) alpha a b :=
   ⟨rsIntegralWitness_integrand_add hf hg⟩
 
+/-
+ # Theorem 1.2 part 1
+-/
 theorem rsIntegral_integrand_add {f g alpha : ℝ → ℝ} {a b : ℝ}
     (hf : RSIntegrable f alpha a b)
     (hg : RSIntegrable g alpha a b) :
@@ -1501,7 +1518,22 @@ theorem rsIntegral_integrand_add {f g alpha : ℝ → ℝ} {a b : ℝ}
     (DarbouxRS.taggedCommonLimit_integrand_add (rsIntegral_spec hf) (rsIntegral_spec hg))
 
 
+/--
+Additivity of the Riemann-Stieltjes integral. (Theorem 1.2, Part 1)
 
+If `f` and `g` are Riemann-Stieltjes integrable with respect to `alpha` on `[a, b]`,
+then the integral of their sum `f + g` evaluates exactly to the sum of their individual integrals.
+
+Mathematically:
+`∫ (f + g) dα = ∫ f dα + ∫ g dα`
+
+*Proof Idea:*
+
+Earlier, we constructed `rsIntegrable_integrand_add`, which proved that the tagged sums
+of `f + g` converge to the value `(∫ f dα) + (∫ g dα)`. Because the limit of a
+Riemann-Stieltjes sum is strictly unique (`taggedCommonLimit_unique`), the formally
+extracted integral of `f + g` must be mathematically equal to this combined sum.
+-/
 noncomputable def rsIntegralWitness_integrand_const_mul {f alpha : ℝ → ℝ} {c a b : ℝ}
     (hf : RSIntegrable f alpha a b) :
     RSIntegralWitness (fun x => c * f x) alpha a b where
@@ -1513,13 +1545,42 @@ noncomputable def rsIntegralWitness_integrand_const_mul {f alpha : ℝ → ℝ} 
     DarbouxRS.taggedCommonLimit_const_mul_core
       (c := c) (rsIntegral_spec hf)
 
+/--
+The Riemann-Stieltjes integral is closed under scalar multiplication.
+
+If a function `f` is Riemann-Stieltjes integrable with respect to `alpha` on `[a, b]`,
+then for any real constant `c`, the scaled function `x ↦ c * f(x)` is also
+Riemann-Stieltjes integrable on `[a, b]`.
+
+This theorem wraps the explicit limit constructed in `rsIntegralWitness_integrand_const_mul`
+(which proves the limit is `c * ∫ f dα`) into the existential `Prop` asserting that
+the integral exists.
+-/
 noncomputable def rsIntegrable_integrand_const_mul {f alpha : ℝ → ℝ} {c a b : ℝ}
     (hf : RSIntegrable f alpha a b) :
     RSIntegrable (fun x => c * f x) alpha a b :=
   ⟨rsIntegralWitness_integrand_const_mul (c := c) hf⟩
 
-/-
- # Theorem 1.2 part 2
+
+/--  # Theorem 1.2 part 2
+Homogeneity of the Riemann-Stieltjes integral. (Theorem 1.2, Part 2)
+
+If `f` is Riemann-Stieltjes integrable with respect to `alpha` on `[a, b]`,
+then the integral of the scaled function `c * f` evaluates exactly to `c` times
+the integral of `f`.
+
+Mathematically:
+`∫ (c * f) dα = c * ∫ f dα`
+
+*Proof Idea:*
+Just as with the addition theorem, this proof relies on the strict uniqueness of limits.
+We previously proved in `taggedCommonLimit_const_mul_core` that the tagged Riemann-Stieltjes
+sums of `c * f` naturally converge to the value `c * (∫ f dα)`. By invoking the uniqueness
+of the tagged limit (`taggedCommonLimit_unique`), we formally conclude that the extracted
+integral of `c * f` must be exactly equal to this value.
+
+Combined with Part 1 (additivity), this establishes that the Riemann-Stieltjes integral
+is a linear operator with respect to the integrand!
 -/
 theorem rsIntegral_integrand_const_mul {f alpha : ℝ → ℝ} {c a b : ℝ}
     (hf : RSIntegrable f alpha a b) :
@@ -1530,6 +1591,26 @@ theorem rsIntegral_integrand_const_mul {f alpha : ℝ → ℝ} {c a b : ℝ}
     (rsIntegral_spec (rsIntegrable_integrand_const_mul (c := c) hf))
     (DarbouxRS.taggedCommonLimit_const_mul_core (c := c) (rsIntegral_spec hf))
 
+/- # Theorem 1.2 part 3
+Monotonicity of the Riemann-Stieltjes integral. (Theorem 1.2, Part 3)
+
+If `f` and `g` are Riemann-Stieltjes integrable with respect to `alpha` on `[a, b]`,
+and `f(x) ≤ g(x)` for all `x ∈ [a, b]`, then the integral of `f` is less than
+or equal to the integral of `g`.
+
+Mathematically:
+`f ≤ g  ⟹  ∫ f dα ≤ ∫ g dα`
+
+*Proof Idea:*
+Because the integrator `alpha` is monotonically increasing (which is guaranteed by
+the underlying integrability hypotheses), the partition weights `Δα` are always non-negative.
+This means that every individual tagged Riemann-Stieltjes sum naturally preserves
+the function inequality `f(t_i) * Δα_i ≤ g(t_i) * Δα_i`.
+
+Since the integrals are defined as the limits of these tagged sums, we simply
+invoke `taggedCommonLimit_mono_core` to demonstrate that limits of ordered
+sequences preserve their mathematical ordering.
+-/
 theorem rsIntegral_integrand_mono {f g alpha : ℝ → ℝ} {a b : ℝ}
     (hf : RSIntegrable f alpha a b)
     (hg : RSIntegrable g alpha a b)
@@ -1546,8 +1627,16 @@ theorem rsIntegral_integrand_mono {f g alpha : ℝ → ℝ} {a b : ℝ}
   then f is RS integral w.r.t. α₁ + α₂.
 -/
 
-/-
-  show that we have a witness of the integral of f w.r.t. α₁ + α₂
+/--
+Constructs the Riemann-Stieltjes integral witness for the sum of two integrators.
+
+Given that `f` is Riemann-Stieltjes integrable with respect to both `α₁` and `α₂`,
+this definition bundles the exact limit value `(∫ f dα₁) + (∫ f dα₂)` together with
+the formal proofs that both the Darboux (upper/lower) limits and the tagged limits
+of `f` integrated against `α₁ + α₂` converge to this combined sum.
+
+This relies on the fact that `Δ(α₁ + α₂)_i = Δ(α₁)_i + Δ(α₂)_i`, which allows the
+underlying Riemann-Stieltjes sums to be split cleanly.
 -/
 noncomputable def rsIntegralWitness_integrator_add {f α₁ α₂ : ℝ → ℝ} {a b : ℝ}
     (h₁ : RSIntegrable f α₁ a b)
@@ -1561,6 +1650,16 @@ noncomputable def rsIntegralWitness_integrator_add {f α₁ α₂ : ℝ → ℝ}
     DarbouxRS.taggedCommonLimit_integrator_add
       (rsIntegral_spec h₁) (rsIntegral_spec h₂)
 
+/--
+The Riemann-Stieltjes integrability is additive with respect to the integrator.
+
+If `f` is Riemann-Stieltjes integrable with respect to `α₁` and `α₂` on `[a, b]`,
+then `f` is also Riemann-Stieltjes integrable with respect to their pointwise
+sum `α₁ + α₂` on `[a, b]`.
+
+This theorem wraps the explicit limit constructed in `rsIntegralWitness_integrator_add`
+into the existential `Prop` asserting integrability.
+-/
 noncomputable def rsIntegrable_integrator_add {f α₁ α₂ : ℝ → ℝ} {a b : ℝ}
     (h₁ : RSIntegrable f α₁ a b)
     (h₂ : RSIntegrable f α₂ a b) :
@@ -1570,13 +1669,30 @@ noncomputable def rsIntegrable_integrator_add {f α₁ α₂ : ℝ → ℝ} {a b
 
 /-
  # Theorem 1.3. (additivity)
- ∫ f d(α₁ + α_2) = ∫ f dα₁ + ∫ f dα₂
+ `∫ f d(α₁ + α₂) = ∫ f dα₁ + ∫ f dα₂`
+
+Additivity of the Riemann-Stieltjes integral with respect to the integrator. (Theorem 1.3)
+
+If a function `f` is Riemann-Stieltjes integrable with respect to both `α₁` and `α₂`
+on `[a, b]`, then it is also integrable with respect to their sum `α₁ + α₂`, and the
+integral evaluates exactly to the sum of the individual integrals.
+
+*Proof Idea:*
+This theorem mirrors the additivity of the integrand (Theorem 1.2, Part 1).
+At the discrete level of Riemann-Stieltjes sums, the intervals distribute perfectly:
+`Δ(α₁ + α₂)_i = Δ(α₁)_i + Δ(α₂)_i`. Therefore, any tagged sum over `α₁ + α₂` splits
+exactly into a tagged sum over `α₁` plus a tagged sum over `α₂`.
+
+We previously established that the limit of these combined sums converges to
+`(∫ f dα₁) + (∫ f dα₂)` via `taggedCommonLimit_integrator_add`. By invoking the
+uniqueness of tagged limits (`taggedCommonLimit_unique`), we mathematically seal
+the equality.
 -/
 theorem rsIntegral_integrator_add {f α₁ α₂ : ℝ → ℝ} {a b : ℝ}
     (h₁ : RSIntegrable f α₁ a b)
     (h₂ : RSIntegrable f α₂ a b) :
-    rsIntegral f (fun x => α₁ x + α₂ x) a b (rsIntegrable_integrator_add h₁ h₂) =
-      rsIntegral f α₁ a b h₁ + rsIntegral f α₂ a b h₂ := by
+  rsIntegral f (fun x => α₁ x + α₂ x) a b (rsIntegrable_integrator_add h₁ h₂) =
+    rsIntegral f α₁ a b h₁ + rsIntegral f α₂ a b h₂ := by
   exact DarbouxRS.taggedCommonLimit_unique
     (rsIntegral_spec (rsIntegrable_integrator_add h₁ h₂))
     (DarbouxRS.taggedCommonLimit_integrator_add (rsIntegral_spec h₁) (rsIntegral_spec h₂))
