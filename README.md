@@ -74,6 +74,7 @@ The project distinguishes four layers of functionality:
 | Section 3 | Riemann-Stieltjes integrals                      | Def 1.2, Def 1.3, Def 1.4, Thm 1.1, Thm 1.2, Thm 1.3, Thm 1.4, Ex 1.3.1, Ex. 1.3.2 |
 | Section 4 | Problems                                         | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10                                            |
 
+
 | Chapter 2 | Probability Spaces |                                                                          |
 | --------- | ------------------ | ------------------------------------------------------------------------ |
 | Section 1 | Countable sets     | Def 2.1, Ex 2.1.1, Ex 2.1.2                                              |
@@ -82,6 +83,7 @@ The project distinguishes four layers of functionality:
 | Section 4 | Borel sets         | Def. 2.7, Def 2.8, Thm 2.6, Thm 2.7, Thm 2.8, Ex 2.4.1                   |
 | Section 5 | Vitali set         | Thm 2.9                                                                  |
 | Section 6 | Problems           | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12                        |
+
 
 | Chapter 3 | Lebesgue-Stieltjes Measures     |                                                                                                         |
 | --------- | ------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -92,6 +94,7 @@ The project distinguishes four layers of functionality:
 | Section 5 | Uniqueness of measure extension | Def 3.10, Thm 3.7, Thm 3.8, Thm 3.9                                                                     |
 | Section 6 | Problems                        | P1, P2, P3, P4, P5, P6, P7, P8, P9                                                                      |
 
+
 | Chapter 4 | Measurable Functions and Random Variables |                                                                                |
 | --------- | ----------------------------------------- | ------------------------------------------------------------------------------ |
 | Section 1 | Measurable functions                      | Def 4.1, Def 4.2, Thm 4.1, Ex 4.1.1, Ex 4.1.2                                  |
@@ -99,6 +102,7 @@ The project distinguishes four layers of functionality:
 | Section 3 | Operations with measurable functions      | Thm 4.6, Thm 4.7, Thm 4.8, Ex 4.3.1, Ex 4.3.2, Definition of limsup and liminf |
 | Section 4 | Complex-valued random variables           | Complex number, complex random variables, Ex 4.4.1, Ex 4.4.2, Ex 4.4.3         |
 | Section 5 | Problems                                  | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13                         |
+
 
 | Chapter 5 | Statistical Independence                                         |                                                                                   |
 | --------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -109,6 +113,7 @@ The project distinguishes four layers of functionality:
 | Section 5 | A model for a sequence of independent random variables           | not formalized                                                                    |
 | Section 6 | Problems                                                         | P1, P2, P3, P4, P5, P6, P7, P8, P9                                                |
 
+
 | Chapter 6 | Lebesgue Integral and Mathematical Expectation                |                                                                  |
 | --------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
 | Section 1 | Simple functions                                              | Def 6.1, Def 6.2, Thm 6.1, Thm 6.2, Ex 6.1.1, Ex 6.1.2           |
@@ -118,6 +123,7 @@ The project distinguishes four layers of functionality:
 | Section 5 | Application: Hat problem and ball-and-bin model               | Ex 6.5.1, Ex 6.5.2                                               |
 | Section 6 | Problems                                                      | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10                          |
 
+
 | Chapter 7 | Properties of Lebesgue Integral and Convergence Theorem        |                                                                           |
 | --------- | -------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | Section 1 | Almost-everywhere equality                                     | Def 7.1, Thm 7.1, Thm 7.2                                                 |
@@ -126,6 +132,7 @@ The project distinguishes four layers of functionality:
 | Section 4 | Push-forward measure and change-of-variable formula            | Def 7.2, Thm 7.10, Thm 7.11, Thm 7.12, Ex 7.4.1, Ex 7.4.2                 |
 | Section 5 | Expectation of the product of two independent random variables | Def 7.3, Thm 7.13, Ex 7.5.1                                               |
 | Section 6 | Problems                                                       | P1, P2, P3, P4, P5, P6, P7, P8, P9                                        |
+
 
 | Chapter 8 | Product Space and Coupling                         |                                                                           |
 | --------- | -------------------------------------------------- | ------------------------------------------------------------------------- |
@@ -142,46 +149,47 @@ The project distinguishes four layers of functionality:
 | Section 2 | Characteristic functions                                 | Def 9.3, Thm 9.3, Thm 9.4, Thm 9.5, Thm 9.6, Thm 9.7, Ex 9.2.1, Ex 9.2.2 |
 | Section 3 | Problems                                                 | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11                             |
 
-| Chapter 10 | Modes of Convergence                                     |     |
-| ---------- | -------------------------------------------------------- | --- |
-| Section 1  | Convergence almost surely and convergence in probability |     |
-| Section 2  | Convergence in the mean                                  |     |
-| Section 3  | Convergence in distribution and in total variation       |     |
-| Section 4  | Convergence of random vectors                            |     |
-| Section 5  | Application: Continuous mapping theorem                  |     |
-| Section 6  | Problems                                                 |     |
 
-| Chapter 11 | Laws of Large Numbers                |     |
-| ---------- | ------------------------------------ | --- |
-| Section 1  | Some useful bounds and inequalities  |     |
-| Section 2  | Weak law of large numbers            |     |
-| Section 3  | Application: Monte Carlo integration |     |
-| Section 4  | Application: Data compression        |     |
-| Section 5  | Strong law of large numbers          |     |
-| Section 6  | Problems                             |     |
+| Chapter 10 | Modes of Convergence                                     |                                                                                   |
+| ---------- | -------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Section 1  | Convergence almost surely and convergence in probability | Def 10.1, Def 10.2, Thm 10.1, Thm 10.2, Thm 10.3 Thm 10.4, Ex 10.1.1              |
+| Section 2  | Convergence in the mean                                  | Def 10.3, Thm 10.5, Ex 10.2.1, Ex 10.2.2                                          |
+| Section 3  | Convergence in distribution and in total variation       | Def 10.4, Def 10.5, Thm 10.6, Thm 10.7, Thm 10.8, Ex 10.3.1, Ex 10.3.2, Ex 10.3.3 |
+| Section 4  | Convergence of random vectors                            | Def 10.6, Thm 10.9, Thm 10.10                                                     |
+| Section 5  | Application: Continuous mapping theorem                  | Thm 10.11, Thm 10.12, Ex 10.5.1                                                   |
+| Section 6  | Problems                                                 | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10                                           |
 
-| Chapter 12 | Techniques from Hilbert Space Theory |     |
-| ---------- | ------------------------------------ | --- |
-| Section 1  | L2-norm and inner product space      |     |
-| Section 2  | Closed subspace and projection       |     |
-| Section 3  | Orthogonality principle              |     |
-| Section 4  | Application. MMSE estimation         |     |
-| Section 5  | Problems                             |     |
+| Chapter 11 | Laws of Large Numbers                |                                          |
+| ---------- | ------------------------------------ | ---------------------------------------- |
+| Section 1  | Some useful bounds and inequalities  | Thm 11.1, Thm 11.2, Thm 11.3             |
+| Section 2  | Weak law of large numbers            | Thm 11.4, Thm 11.5, Thm 11.6             |
+| Section 3  | Application: Monte Carlo integration | not formalized                           |
+| Section 4  | Application: Data compression        | not formalized                           |
+| Section 5  | Strong law of large numbers          | Thm 11.7, Thm 11.8, Ex 11.5.1, Ex 11.5.2 |
+| Section 6  | Problems                             | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10  |
 
-| Chapter 13 | Conditional Expectations                                    |     |
-| ---------- | ----------------------------------------------------------- | --- |
-| Section 1  | Expectation conditioned on a finite partition               |     |
-| Section 2  | Expectation conditioned on  a sub-sigma-algebra             |     |
-| Section 3  | Properties of conditional expectation                       |     |
-| Section 4  | Conditional expectation given a discrete random variables   |     |
-| Section 5  | Conditional expectation given a continuous random variables |     |
-| Section 6  | Application: Martingale and stopping time                   |     |
+| Chapter 12 | Techniques from Hilbert Space Theory |                                                                                  |
+| ---------- | ------------------------------------ | -------------------------------------------------------------------------------- |
+| Section 1  | L2-norm and inner product space      | Def 12.1, Def 12.2, Def 12.3, Thm 12.1, Thm 12.2, Thm 12.3, Ex 12.1.1, Ex 12.1.2 |
+| Section 2  | Closed subspace and projection       | Def 12.4, Def 12.5, Thm 12.4, Ex 12.2.1, Ex 12.2.2, Ex 12.2.3                    |
+| Section 3  | Orthogonality principle              | Thm 12.5, Thm 12.6, Ex 12.4.1, Ex 12.4.2, Ex 12.4.3                              |
+| Section 4  | Application. MMSE estimation         | Ex 12.4.1, Ex 12.4.2, Ex 12.4.3                                                  |
+| Section 5  | Problems                             | P1, P2, P3, P4, P5                                                               |
 
-| Chapter 14 | Levy's Continuity Theorem and Central Limit Theorem |     |
-| ---------- | --------------------------------------------------- | --- |
-| Section 1  | Weak convergence                                    |     |
-| Section 2  | Tightness of a sequence of measures                 |     |
-| Section 3  | Prokhorov theorem and sequential compactness        |     |
-| Section 4  | Central limit theorems                              |     |
-| Section 5  | Problems                                            |     |
+| Chapter 13 | Conditional Expectations                                    |                                                                                                                                           |
+| ---------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Section 1  | Expectation conditioned on a finite partition               | Def 13.1, Def 13.2, Thm 13.1, Thm 13.2                                                                                                    |
+| Section 2  | Expectation conditioned on  a sub-sigma-algebra             | Def 13.3, Def 13.4, Def 13.5, Thm 13.3, Thm 13.4, Ex 13.2.1, Ex 13.2.2                                                                    |
+| Section 3  | Properties of conditional expectation                       | Thm 13.5, Thm 13.6, Thm 13.7, THm 13.8, Thm 13.9, Thm 13.10,  Ex 13.3.1                                                                   |
+| Section 4  | Conditional expectation given a discrete random variables   | Thm 13.11, Thm 13.12, Thm 13.13                                                                                                           |
+| Section 5  | Conditional expectation given a continuous random variables | Thm 13.14, Ex 13.5.1                                                                                                                      |
+| Section 6  | Application: Martingale and stopping time                   | Def 13.6, Def 13.7, Def 13.8, Def 13.9, Thm 13.15, Thm 13.16, Thm 13.17, Thm 13.18, Ex 13.6.1, Ex 13.6.2, Ex 13.6.3, Ex 13.6.4, Ex 13.6.5 |
+
+| Chapter 14 | Levy's Continuity Theorem and Central Limit Theorem |                                                            |
+| ---------- | --------------------------------------------------- | ---------------------------------------------------------- |
+| Section 1  | Weak convergence                                    | Def 14.1, Def 14.2, Thm 14.1, Thm 14.2, Thm 14.3, Thm 14.4 |
+| Section 2  | Tightness of a sequence of measures                 | Def 14.3, Thm 14.5, Ex 14.2.1                              |
+| Section 3  | Prokhorov theorem and sequential compactness        | Thm 14.6, Ex 14.3.1, Ex 14.3.2                             |
+| Section 4  | Central limit theorems                              | Thm 14.7, Thm 14.8, Ex 14.4.1, Ex 14.4.2, Ex 14.4.3        |
+| Section 5  | Problems                                            | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12          |
 
