@@ -1,5 +1,15 @@
-import Mathlib.Data.Real.Basic
 import Mathlib.Tactic
+
+--import Mathlib.Topology.MetricSpace.Basic
+-- ℝ as a metric space: `dist`, `Real.dist_eq`, `eq_of_forall_dist_le`
+--import Mathlib.Algebra.Order.Archimedean.Real.Basic
+-- ℝ ordered field, `sSup`/`sInf`, `exists_nat_gt`
+--import Mathlib.Data.Fintype.Basic
+-- `Fintype (Fin n)`, `Finset.univ`, `Finset.mem_univ`
+--import Mathlib.Data.Finset.Lattice.Fold
+-- `Finset.sup'`, `Finset.sup'_eq_of_forall`
+--import Mathlib.Algebra.BigOperators.Group.Finset.Defs
+-- `∑` (`Finset.sum`) notation
 
 open scoped BigOperators Pointwise
 
@@ -227,7 +237,12 @@ def rsIntegrableFamily (alpha : ℝ → ℝ) (a b : ℝ) : Set (ℝ → ℝ) :=
 
 
 
-section uniform_mesh_partition
+section RS_integral_uniqueness
+/-
+  In this section we prove that the limit of tagged sums
+  is unique, if the limit exists.
+-/
+
 
 /-
  We can take the left boundary of a sub-interval as the tag of the
@@ -314,7 +329,10 @@ theorem exists_partition_mesh_lt {a b δ : ℝ} (hab : a < b) (hδ : 0 < δ) :
   rw [div_lt_iff₀ hNposR]
   nlinarith
 
-
+/--
+  The limit of tagged sums is unique, provided the tags are chosen
+  in the corresponding sub-intervals and the mesh goes to zero.
+-/
 theorem taggedCommonLimit_unique {a b : ℝ} {f alpha : ℝ → ℝ} {L₁ L₂ : ℝ}
     (h₁ : TaggedCommonLimit a b f alpha L₁)
     (h₂ : TaggedCommonLimit a b f alpha L₂) :
@@ -363,4 +381,4 @@ theorem taggedCommonLimit_unique {a b : ℝ} {f alpha : ℝ → ℝ} {L₁ L₂ 
     simpa [Real.dist_eq, abs_sub_comm] using hlt
   exact le_of_lt hdist
 
-end uniform_mesh_partition
+end RS_integral_uniqueness

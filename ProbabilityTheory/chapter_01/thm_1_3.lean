@@ -255,3 +255,186 @@ theorem thm_1_3 {f α₁ α₂ : ℝ → ℝ} {a b : ℝ}
 
 
 end Theorem_1_3
+
+
+
+
+
+section integrator_scalar_multiply
+
+/-!
+  # Linearity of the Integrator: Scalar Multiplication
+
+  This section establishes that the Riemann-Stieltjes integral is linear with
+  respect to scalar multiplication of the integrator. Specifically, it proves that
+  ∫ f d(k * α) = k * ∫ f dα.
+
+  ## Mathematical Context
+  In the standard textbook development of the Riemann-Stieltjes integral, the
+  integrator `α` is required to be monotonically increasing. This guarantees that
+  the width of every partition subinterval `Δα_i = α(x_{i+1}) - α(x_i)` is
+  non-negative, which is foundational for bounding the upper and lower sums.
+
+  Because of this, multiplying the integrator `α` by a scalar `k` poses a strict
+  analytical constraint: *`k` must be non-negative (`k ≥ 0`)*.
+  If `k` were negative, `k * α` would become monotonically decreasing, violating
+  the core `SourceHypotheses` of the integral.
+
+  ## Contents of this Section
+  1. **Helper Lemmas**: Proofs that upper, lower, and tagged sums scale exactly
+     by `k`. Furthermore, we prove that `SourceHypotheses` is preserved under
+     multiplication by `k ≥ 0`.
+
+  2. **Limit Theorems**: Proofs that the Darboux upper/lower limits and the
+     tagged sum limits converge to `k * L`.
+
+  3. **Main Theorems**:
+     - `rsIntegrable_integrator_const_mul`: Given `f` is integrable w.r.t `α`,
+       it is also integrable w.r.t `k * α`.
+     - `rsIntegral_integrator_const_mul_eq`: The formal equality
+       evaluating the integral as `k * ∫ f dα`.
+
+  These theorems are essential for defining the expectation of probability
+  distributions, as scaling the CDF by probability weights `p_i ≥ 0` natively
+  satisfies this non-negative scalar requirement.
+-/
+
+
+
+
+/--
+If α is monotonic and k ≥ 0, then k * α is also monotonic.
+This is required because the RS integral rigidly requires increasing integrators.
+-/
+lemma sourceHypotheses_integrator_const_mul {a b : ℝ} {f α : ℝ → ℝ} {k : ℝ}
+    (hk : 0 ≤ k) (h : SourceHypotheses a b f α) :
+    SourceHypotheses a b f (fun x => k * α x) := by
+  rcases h with ⟨hab, hAbove, hBelow, hmono⟩
+  refine ⟨hab, hAbove, hBelow, ?_⟩
+  intro x hx y hy hxy
+  -- Multiplying an inequality by a non-negative constant preserves it
+  exact mul_le_mul_of_nonneg_left (hmono hx hy hxy) hk
+
+lemma upperSum_integrator_const_mul {a b : ℝ} (P : Partition a b)
+    (f α : ℝ → ℝ) (k : ℝ) :
+    upperSum P f (fun x => k * α x) = k * upperSum P f α := by
+  unfold upperSum
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl ?_
+  intro i _hi
+  ring
+
+lemma lowerSum_integrator_const_mul {a b : ℝ} (P : Partition a b)
+    (f α : ℝ → ℝ) (k : ℝ) :
+    lowerSum P f (fun x => k * α x) = k * lowerSum P f α := by
+  unfold lowerSum
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl ?_
+  intro i _hi
+  ring
+
+lemma taggedSum_integrator_const_mul {a b : ℝ} (P : Partition a b) (tags : Fin P.n → ℝ)
+    (f α : ℝ → ℝ) (k : ℝ) :
+    taggedSum P tags f (fun x => k * α x) = k * taggedSum P tags f α := by
+  unfold taggedSum
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl ?_
+  intro i _hi
+  ring
+
+
+
+theorem upperLowerCommonLimit_integrator_const_mul {a b k : ℝ} {f α : ℝ → ℝ}
+    {L : ℝ} (hk : 0 ≤ k)
+    (h : UpperLowerCommonLimit a b f α L) :
+    UpperLowerCommonLimit a b f (fun x => k * α x) (k * L) := by
+  rcases h with ⟨hs, hlim⟩
+  refine ⟨sourceHypotheses_integrator_const_mul hk hs, ?_⟩
+  intro eps heps
+  let C : ℝ := |k| + 1
+  have hCpos : 0 < C := by
+    dsimp [C]
+    linarith [abs_nonneg k]
+  have hscale : 0 < eps / C := div_pos heps hCpos
+  rcases hlim (eps / C) hscale with ⟨δ, hδ, H⟩
+  refine ⟨δ, hδ, ?_⟩
+  intro P hmesh
+  have hP := H P hmesh
+  constructor
+  · have hEq : upperSum P f (fun x => k * α x) - k * L = k * (upperSum P f α - L) := by
+      rw [upperSum_integrator_const_mul P f α k]
+      ring
+    rw [hEq, abs_mul]
+    have hmul₁ : |k| * |upperSum P f α - L| ≤ |k| * (eps / C) :=
+      mul_le_mul_of_nonneg_left (le_of_lt hP.1) (abs_nonneg k)
+    have hmul₂ : |k| * (eps / C) < C * (eps / C) := mul_lt_mul_of_pos_right (lt_add_one |k|) hscale
+    have hCmul : C * (eps / C) = eps := by field_simp [ne_of_gt hCpos]
+    exact lt_of_le_of_lt hmul₁ (by simpa [hCmul] using hmul₂)
+  · have hEq : lowerSum P f (fun x => k * α x) - k * L = k * (lowerSum P f α - L) := by
+      rw [lowerSum_integrator_const_mul P f α k]
+      ring
+    rw [hEq, abs_mul]
+    have hmul₁ : |k| * |lowerSum P f α - L| ≤ |k| * (eps / C) :=
+      mul_le_mul_of_nonneg_left (le_of_lt hP.2) (abs_nonneg k)
+    have hmul₂ : |k| * (eps / C) < C * (eps / C) := mul_lt_mul_of_pos_right (lt_add_one |k|) hscale
+    have hCmul : C * (eps / C) = eps := by field_simp [ne_of_gt hCpos]
+    exact lt_of_le_of_lt hmul₁ (by simpa [hCmul] using hmul₂)
+
+theorem taggedCommonLimit_integrator_const_mul {a b k : ℝ} {f α : ℝ → ℝ}
+    {L : ℝ} (hk : 0 ≤ k)
+    (h : TaggedCommonLimit a b f α L) :
+    TaggedCommonLimit a b f (fun x => k * α x) (k * L) := by
+  rcases h with ⟨hs, hlim⟩
+  refine ⟨sourceHypotheses_integrator_const_mul hk hs, ?_⟩
+  intro eps heps
+  let C : ℝ := |k| + 1
+  have hCpos : 0 < C := by
+    dsimp [C]
+    linarith [abs_nonneg k]
+  have hscale : 0 < eps / C := div_pos heps hCpos
+  rcases hlim (eps / C) hscale with ⟨δ, hδ, H⟩
+  refine ⟨δ, hδ, ?_⟩
+  intro P tags htags hmesh
+  have hP := H P tags htags hmesh
+  have hEq : taggedSum P tags f (fun x => k * α x) - k * L = k * (taggedSum P tags f α - L) := by
+    rw [taggedSum_integrator_const_mul P tags f α k]
+    ring
+  rw [hEq, abs_mul]
+  have hmul₁ : |k| * |taggedSum P tags f α - L| ≤ |k| * (eps / C) :=
+    mul_le_mul_of_nonneg_left (le_of_lt hP) (abs_nonneg k)
+  have hmul₂ : |k| * (eps / C) < C * (eps / C) := mul_lt_mul_of_pos_right (lt_add_one |k|) hscale
+  have hCmul : C * (eps / C) = eps := by field_simp [ne_of_gt hCpos]
+  exact lt_of_le_of_lt hmul₁ (by simpa [hCmul] using hmul₂)
+
+
+/--
+The expectation of a discrete random variable is equal to ∑ c_i * p_i.
+We choose boundaries `a` and `b` such that all probability masses `c_i`
+fall strictly inside the open interval `(a, b)`.
+-/
+noncomputable def rsIntegralWitness_integrator_const_mul {f α : ℝ → ℝ} {a b k : ℝ}
+    (hk : 0 ≤ k) (h : RSIntegrable f α a b) :
+    RSIntegralWitness f (fun x => k * α x) a b where
+  value := k * rsIntegral f α a b h
+  source_limit := upperLowerCommonLimit_integrator_const_mul hk (rsIntegral_source_spec h)
+  tagged_limit := taggedCommonLimit_integrator_const_mul hk (rsIntegral_spec h)
+
+
+
+/-- The Integrability Prop for scalar multiplication of the integrator. -/
+theorem rsIntegrable_integrator_const_mul {f α : ℝ → ℝ} {a b k : ℝ}
+    (hk : 0 ≤ k) (h : RSIntegrable f α a b) :
+    RSIntegrable f (fun x => k * α x) a b :=
+  ⟨rsIntegralWitness_integrator_const_mul hk h⟩
+
+/-- The Evaluation Theorem: ∫ f d(kα) = k ∫ f dα. -/
+theorem rsIntegral_integrator_const_mul_eq {f α : ℝ → ℝ} {a b k : ℝ}
+    (hk : 0 ≤ k) (h : RSIntegrable f α a b) :
+    rsIntegral f (fun x => k * α x) a b (rsIntegrable_integrator_const_mul hk h) =
+      k * rsIntegral f α a b h := by
+  -- We prove equality by invoking the uniqueness of the tagged limits!
+  exact taggedCommonLimit_unique
+    (rsIntegral_spec (rsIntegrable_integrator_const_mul hk h))
+    (taggedCommonLimit_integrator_const_mul hk (rsIntegral_spec h))
+
+end integrator_scalar_multiply
