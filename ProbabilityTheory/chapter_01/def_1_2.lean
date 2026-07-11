@@ -382,3 +382,14 @@ theorem taggedCommonLimit_unique {a b : ℝ} {f alpha : ℝ → ℝ} {L₁ L₂ 
   exact le_of_lt hdist
 
 end RS_integral_uniqueness
+
+
+/-
+The following API can be reused
+
+exists_common_refinement
+lowerSum_le_of_refinement
+upperSum_le_of_refinement
+lowerSum_le_upperSum_any
+
+-/

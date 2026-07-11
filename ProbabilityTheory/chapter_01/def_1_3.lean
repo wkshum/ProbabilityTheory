@@ -632,8 +632,5 @@ theorem cdfExpectation_integrable_and_eq_integral_pdf
   · unfold cdfExpectation
     exact h.2
 
-
-
-
 end ContinuousExpectation  -- namespace
 end ContinuousExpectation    -- section

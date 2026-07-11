@@ -935,7 +935,6 @@ theorem taggedCommonLimit_mono_core {a b : ℝ} {f g alpha : ℝ → ℝ} {Lf Lg
   rcases hlimg (eps / 2) hhalf with ⟨δg, hδg, Hg⟩
   rcases exists_partition_mesh_lt hab (lt_min hδf hδg) with ⟨P, hPmesh⟩
 
-  -- FIX: Define `tags` to exactly match `Fin P.n → ℝ` using left endpoints
   let tags : Fin P.n → ℝ := fun i => P.pts i.castSucc
 
   -- We already proved this earlier!
@@ -1122,3 +1121,1254 @@ theorem rsIntegral_integrand_mono {f g alpha : ℝ → ℝ} {a b : ℝ}
 
 
 end Thm_1_2
+
+
+
+
+
+noncomputable section Darboux_fundamental_result
+
+
+
+
+/-- A partition P' is a refinement of P if every point in P is also in P'. -/
+def IsRefinement {a b : ℝ} (P P' : Partition a b) : Prop :=
+  ∀ i : Fin (P.n + 1), ∃ j : Fin (P'.n + 1), P.pts i = P'.pts j
+
+structure Refinement {a b : ℝ} (P P' : Partition a b) where
+  index : Fin (P.n + 1) → Fin (P'.n + 1)
+  index_spec : ∀ i, P.pts i = P'.pts (index i)
+  strictMono_index : StrictMono index
+
+
+namespace Refinement
+
+noncomputable def block {a b : ℝ} {P P' : Partition a b}
+    (R : Refinement P P') (i : Fin P.n) : Finset (Fin P'.n) :=
+  let lo : ℕ := (R.index i.castSucc).val
+  let hi : ℕ := (R.index i.succ).val
+  ((Finset.range (hi - lo)).attach.image
+    (fun t =>
+      ⟨lo + t.1, by
+        have hmono :
+            (R.index i.castSucc).val < (R.index i.succ).val := by
+          exact R.strictMono_index Fin.castSucc_lt_succ
+
+        have ht : t.1 < hi - lo := by
+          simpa using Finset.mem_range.mp t.2
+
+        have hhi : hi ≤ P'.n := by
+          exact Nat.le_of_lt_succ (R.index i.succ).isLt
+
+        omega⟩))
+
+end Refinement
+
+
+lemma lowerStep_le_of_subinterval_subset
+    {a b : ℝ} {f : ℝ → ℝ}
+    (P P' : Partition a b)
+    (i : Fin P.n) (j : Fin P'.n)
+    (hfBelow : BddBelow (f '' Set.Icc a b))
+    (hsub : Partition.subinterval P' j ⊆ Partition.subinterval P i) :
+    lowerStep P f i ≤ lowerStep P' f j := by
+  have hOldBelow : BddBelow (f '' Partition.subinterval P i) :=
+    BddBelow.mono
+      (Set.image_mono (DarbouxRS.subinterval_subset_Icc_core P))
+      hfBelow
+
+  have hNewNonempty : (f '' Partition.subinterval P' j).Nonempty := by
+    refine ⟨f (P'.pts j.castSucc), ?_⟩
+    refine ⟨P'.pts j.castSucc, ?_, rfl⟩
+    constructor
+    · exact le_rfl
+    · exact le_of_lt (P'.strict_mono Fin.castSucc_lt_succ)
+
+  unfold lowerStep
+  refine le_csInf hNewNonempty ?_
+  rintro y ⟨x, hx, rfl⟩
+  exact csInf_le hOldBelow ⟨x, hsub hx, rfl⟩
+
+
+lemma upperStep_le_of_subinterval_subset
+    {a b : ℝ} {f : ℝ → ℝ}
+    (P P' : Partition a b)
+    (i : Fin P.n) (j : Fin P'.n)
+    (hfAbove : BddAbove (f '' Set.Icc a b))
+    (hsub : Partition.subinterval P' j ⊆ Partition.subinterval P i) :
+    upperStep P' f j ≤ upperStep P f i := by
+  have hOldAbove : BddAbove (f '' Partition.subinterval P i) :=
+    BddAbove.mono
+      (Set.image_mono (DarbouxRS.subinterval_subset_Icc_core P))
+      hfAbove
+
+  have hNewNonempty : (f '' Partition.subinterval P' j).Nonempty := by
+    refine ⟨f (P'.pts j.castSucc), ?_⟩
+    refine ⟨P'.pts j.castSucc, ?_, rfl⟩
+    constructor
+    · exact le_rfl
+    · exact le_of_lt (P'.strict_mono Fin.castSucc_lt_succ)
+
+  unfold upperStep
+  refine csSup_le hNewNonempty ?_
+  rintro y ⟨x, hx, rfl⟩
+  exact le_csSup hOldAbove ⟨x, hsub hx, rfl⟩
+
+
+lemma Refinement.subinterval_subset_of_mem_block
+    {a b : ℝ} {P P' : Partition a b}
+    (R : Refinement P P')
+    {i : Fin P.n} {j : Fin P'.n}
+    (hj : j ∈ R.block i) :
+    Partition.subinterval P' j ⊆ Partition.subinterval P i := by
+  classical
+
+  unfold Refinement.block at hj
+  dsimp only at hj
+
+  rcases Finset.mem_image.mp hj with ⟨t, _htmem, htj⟩
+
+  -- `t` is an element of the attached range, so `t.1` lies in the range.
+  have ht_lt :
+      t.1 <
+        (R.index i.succ).val - (R.index i.castSucc).val := by
+    exact Finset.mem_range.mp t.2
+
+  -- The image equality says that the value of `j` is `lo + t`.
+  have hjval :
+      j.val = (R.index i.castSucc).val + t.1 := by
+    exact (congrArg Fin.val htj).symm
+
+  -- Left endpoint inequality:
+  -- `R.index i ≤ j`.
+  have hleft :
+      R.index i.castSucc ≤ j.castSucc := by
+    change (R.index i.castSucc).val ≤ j.val
+    rw [hjval]
+    omega
+
+  -- Right endpoint inequality:
+  -- `j + 1 ≤ R.index (i+1)`.
+  have hright :
+      j.succ ≤ R.index i.succ := by
+    change j.val + 1 ≤ (R.index i.succ).val
+    rw [hjval]
+    omega
+
+  intro x hx
+  constructor
+  · -- old left endpoint ≤ x
+    have hpts_left :
+        P'.pts (R.index i.castSucc) ≤ P'.pts j.castSucc :=
+      P'.strict_mono.monotone hleft
+
+    calc
+      P.pts i.castSucc = P'.pts (R.index i.castSucc) :=
+        R.index_spec i.castSucc
+      _ ≤ P'.pts j.castSucc :=
+        hpts_left
+      _ ≤ x :=
+        hx.1
+
+  · -- x ≤ old right endpoint
+    have hpts_right :
+        P'.pts j.succ ≤ P'.pts (R.index i.succ) :=
+      P'.strict_mono.monotone hright
+
+    calc
+      x ≤ P'.pts j.succ :=
+        hx.2
+      _ ≤ P'.pts (R.index i.succ) :=
+        hpts_right
+      _ = P.pts i.succ :=
+        (R.index_spec i.succ).symm
+
+
+-- lemma sum_range_sub_from (u : ℕ → ℝ) (m d : ℕ) :
+--     (∑ t ∈ Finset.range d, (u (m + (t + 1)) - u (m + t)))
+--       =
+--     u (m + d) - u m := by
+--   induction d with
+--   | zero =>
+--       simp
+--   | succ d ih =>
+--       rw [Finset.sum_range_succ, ih]
+--       ring
+
+
+lemma sum_range_sub_from (u : ℕ → ℝ) (m d : ℕ) :
+    (∑ t ∈ Finset.range d, (u (m + (t + 1)) - u (m + t)))
+      =
+    u (m + d) - u m := by
+  induction d with
+  | zero =>
+      simp
+  | succ d ih =>
+      rw [Finset.sum_range_succ, ih]
+      ring
+
+
+lemma Refinement.sum_block_increment
+    {a b : ℝ} {α : ℝ → ℝ}
+    {P P' : Partition a b}
+    (R : Refinement P P')
+    (i : Fin P.n) :
+    Finset.sum (R.block i)
+      (fun j => α (P'.pts j.succ) - α (P'.pts j.castSucc))
+      =
+    α (P.pts i.succ) - α (P.pts i.castSucc) := by
+  classical
+
+  let lo : ℕ := (R.index i.castSucc).val
+  let hi : ℕ := (R.index i.succ).val
+  let d : ℕ := hi - lo
+
+  have hmono_fin :
+      R.index i.castSucc < R.index i.succ :=
+    R.strictMono_index Fin.castSucc_lt_succ
+
+  have hmono : lo < hi := by
+    exact hmono_fin
+
+  have hhi_le : hi ≤ P'.n := by
+    exact Nat.le_of_lt_succ (R.index i.succ).isLt
+
+  have hlo_lt_succ : lo < P'.n + 1 := by
+    exact (R.index i.castSucc).isLt
+
+  have hhi_lt_succ : hi < P'.n + 1 := by
+    exact (R.index i.succ).isLt
+
+  have hlo_add_d : lo + d = hi := by
+    dsimp [d]
+    omega
+
+  let u : ℕ → ℝ := fun k =>
+    if hk : k < P'.n + 1 then
+      α (P'.pts ⟨k, hk⟩)
+    else
+      0
+
+  have htel :
+      (∑ t ∈ Finset.range d,
+        (u (lo + (t + 1)) - u (lo + t)))
+        =
+      u (lo + d) - u lo :=
+    sum_range_sub_from u lo d
+
+  have hsum_image :
+      (∑ j ∈ R.block i,
+        (α (P'.pts j.succ) - α (P'.pts j.castSucc)))
+        =
+      ∑ t ∈ (Finset.range d).attach,
+        (α (P'.pts
+          ((⟨lo + t.1, by
+            have ht : t.1 < d := by
+              exact Finset.mem_range.mp t.2
+            have hlt_hi : lo + t.1 < hi := by
+              dsimp [d] at ht
+              omega
+            exact lt_of_lt_of_le hlt_hi hhi_le
+          ⟩ : Fin P'.n).succ))
+          -
+          α (P'.pts
+          ((⟨lo + t.1, by
+            have ht : t.1 < d := by
+              exact Finset.mem_range.mp t.2
+            have hlt_hi : lo + t.1 < hi := by
+              dsimp [d] at ht
+              omega
+            exact lt_of_lt_of_le hlt_hi hhi_le
+          ⟩ : Fin P'.n).castSucc))) := by
+    unfold Refinement.block
+    dsimp [lo, hi, d]
+
+    rw [Finset.sum_image]
+    · -- Main goal: compare the two sums over the attached range.
+      refine Finset.sum_congr rfl ?_
+      intro t ht
+
+      apply congrArg₂ (fun x y : ℝ => x - y)
+      · -- right endpoint: `(⟨lo + t, _⟩ : Fin P'.n).succ`
+        -- equals the `Fin (P'.n + 1)` with value `lo + t + 1`
+        apply congrArg (fun z => α (P'.pts z))
+        apply Fin.ext
+        simp [Fin.succ, Nat.add_assoc]
+
+      · -- left endpoint: `(⟨lo + t, _⟩ : Fin P'.n).castSucc`
+        -- equals the `Fin (P'.n + 1)` with value `lo + t`
+        apply congrArg (fun z => α (P'.pts z))
+        apply Fin.ext
+        simp [Fin.castSucc]
+
+    · -- Side goal: injectivity of the map used in `Finset.image`.
+      intro x _hx y _hy hxy
+      apply Subtype.ext
+      have hval :
+          lo + x.1 = lo + y.1 := by
+        exact congrArg Fin.val hxy
+      omega
+
+
+  have hsum_attach :
+      Finset.sum ((Finset.range d).attach)
+        (fun t =>
+          α (P'.pts
+            ((⟨lo + t.1, by
+              have ht : t.1 < d := by
+                exact Finset.mem_range.mp t.2
+              have hlt_hi : lo + t.1 < hi := by
+                dsimp [d] at ht
+                omega
+              exact lt_of_lt_of_le hlt_hi hhi_le
+            ⟩ : Fin P'.n).succ))
+          -
+          α (P'.pts
+            ((⟨lo + t.1, by
+              have ht : t.1 < d := by
+                exact Finset.mem_range.mp t.2
+              have hlt_hi : lo + t.1 < hi := by
+                dsimp [d] at ht
+                omega
+              exact lt_of_lt_of_le hlt_hi hhi_le
+            ⟩ : Fin P'.n).castSucc)))
+        =
+      Finset.sum (Finset.range d)
+        (fun t => u (lo + (t + 1)) - u (lo + t)) := by
+
+    let G : ℕ → ℝ :=
+      fun t => u (lo + (t + 1)) - u (lo + t)
+
+    have h₁ :
+        Finset.sum ((Finset.range d).attach)
+          (fun t =>
+            α (P'.pts
+              ((⟨lo + t.1, by
+                have ht : t.1 < d := by
+                  exact Finset.mem_range.mp t.2
+                have hlt_hi : lo + t.1 < hi := by
+                  dsimp [d] at ht
+                  omega
+                exact lt_of_lt_of_le hlt_hi hhi_le
+              ⟩ : Fin P'.n).succ))
+            -
+            α (P'.pts
+              ((⟨lo + t.1, by
+                have ht : t.1 < d := by
+                  exact Finset.mem_range.mp t.2
+                have hlt_hi : lo + t.1 < hi := by
+                  dsimp [d] at ht
+                  omega
+                exact lt_of_lt_of_le hlt_hi hhi_le
+              ⟩ : Fin P'.n).castSucc)))
+          =
+        Finset.sum ((Finset.range d).attach)
+          (fun t => G t.1) := by
+      refine Finset.sum_congr rfl ?_
+      intro t htmem
+
+      have htlt : t.1 < d := by
+        exact Finset.mem_range.mp t.2
+
+      have hleft_valid : lo + t.1 < P'.n + 1 := by
+        have hlt_hi : lo + t.1 < hi := by
+          dsimp [d] at htlt
+          omega
+        omega
+
+      have hright_valid : lo + (t.1 + 1) < P'.n + 1 := by
+        have hle_hi : lo + (t.1 + 1) ≤ hi := by
+          dsimp [d] at htlt
+          omega
+        omega
+
+      dsimp [G, u]
+      rw [dif_pos hright_valid, dif_pos hleft_valid]
+
+      apply congrArg₂ Sub.sub
+      · -- right endpoint
+        apply congrArg (fun y : ℝ => α y)
+        apply congrArg (fun z : Fin (P'.n + 1) => P'.pts z)
+        apply Fin.ext
+        simp
+        omega
+
+      · -- left endpoint
+        apply congrArg (fun y : ℝ => α y)
+        apply congrArg (fun z : Fin (P'.n + 1) => P'.pts z)
+        apply Fin.ext
+        simp
+
+    have h₂ :
+        Finset.sum ((Finset.range d).attach)
+          (fun t => G t.1)
+          =
+        Finset.sum (Finset.range d) G := by
+      simpa [G] using
+        (Finset.sum_attach (s := Finset.range d) (f := G))
+
+    calc
+      Finset.sum ((Finset.range d).attach)
+        (fun t =>
+          α (P'.pts
+            ((⟨lo + t.1, by
+              have ht : t.1 < d := by
+                exact Finset.mem_range.mp t.2
+              have hlt_hi : lo + t.1 < hi := by
+                dsimp [d] at ht
+                omega
+              exact lt_of_lt_of_le hlt_hi hhi_le
+            ⟩ : Fin P'.n).succ))
+          -
+          α (P'.pts
+            ((⟨lo + t.1, by
+              have ht : t.1 < d := by
+                exact Finset.mem_range.mp t.2
+              have hlt_hi : lo + t.1 < hi := by
+                dsimp [d] at ht
+                omega
+              exact lt_of_lt_of_le hlt_hi hhi_le
+            ⟩ : Fin P'.n).castSucc)))
+          =
+        Finset.sum ((Finset.range d).attach)
+          (fun t => G t.1) := h₁
+      _ =
+        Finset.sum (Finset.range d) G := h₂
+      _ =
+        Finset.sum (Finset.range d)
+          (fun t => u (lo + (t + 1)) - u (lo + t)) := by
+        rfl
+
+  have hu_lo :
+      u lo = α (P'.pts (R.index i.castSucc)) := by
+    have hfin :
+        (⟨lo, hlo_lt_succ⟩ : Fin (P'.n + 1)) =
+          R.index i.castSucc := by
+      apply Fin.ext
+      dsimp [lo]
+
+    dsimp [u]
+    rw [dif_pos hlo_lt_succ]
+
+
+  have hu_hi :
+      u hi = α (P'.pts (R.index i.succ)) := by
+    have hfin :
+        (⟨hi, hhi_lt_succ⟩ : Fin (P'.n + 1)) =
+          R.index i.succ := by
+      apply Fin.ext
+      dsimp [hi]
+
+    dsimp [u]
+    rw [dif_pos hhi_lt_succ]
+
+
+  calc
+    (∑ j ∈ R.block i,
+      (α (P'.pts j.succ) - α (P'.pts j.castSucc)))
+        =
+      (∑ t ∈ (Finset.range d).attach,
+        (α (P'.pts
+          ((⟨lo + t.1, by
+            have ht : t.1 < d := by
+              exact Finset.mem_range.mp t.2
+            have hlt_hi : lo + t.1 < hi := by
+              dsimp [d] at ht
+              omega
+            exact lt_of_lt_of_le hlt_hi hhi_le
+          ⟩ : Fin P'.n).succ))
+          -
+          α (P'.pts
+          ((⟨lo + t.1, by
+            have ht : t.1 < d := by
+              exact Finset.mem_range.mp t.2
+            have hlt_hi : lo + t.1 < hi := by
+              dsimp [d] at ht
+              omega
+            exact lt_of_lt_of_le hlt_hi hhi_le
+          ⟩ : Fin P'.n).castSucc)))) := by
+        exact hsum_image
+
+    _ =
+      (∑ t ∈ Finset.range d,
+        (u (lo + (t + 1)) - u (lo + t))) := by
+        exact hsum_attach
+
+    _ = u (lo + d) - u lo := by
+        exact htel
+
+    _ = u hi - u lo := by
+        rw [hlo_add_d]
+
+    _ =
+      α (P'.pts (R.index i.succ))
+        -
+      α (P'.pts (R.index i.castSucc)) := by
+        rw [hu_hi, hu_lo]
+
+    _ =
+      α (P.pts i.succ) - α (P.pts i.castSucc) := by
+        rw [← R.index_spec i.succ, ← R.index_spec i.castSucc]
+
+lemma Refinement.mem_block_iff
+    {a b : ℝ} {P P' : Partition a b}
+    (R : Refinement P P')
+    {i : Fin P.n} {j : Fin P'.n} :
+    j ∈ R.block i ↔
+      (R.index i.castSucc).val ≤ j.val ∧
+      j.val < (R.index i.succ).val := by
+  classical
+  unfold Refinement.block
+  dsimp
+  constructor
+  · intro hj
+    rcases Finset.mem_image.mp hj with ⟨t, _htmem, htj⟩
+
+    have htlt :
+        t.1 < (R.index i.succ).val - (R.index i.castSucc).val := by
+      exact Finset.mem_range.mp t.2
+
+    have hjval :
+        j.val = (R.index i.castSucc).val + t.1 := by
+      exact (congrArg Fin.val htj).symm
+
+    constructor
+    · rw [hjval]
+      omega
+    · rw [hjval]
+      omega
+
+  · intro hj
+    rcases hj with ⟨hlo, hhi⟩
+
+    let tnat : ℕ := j.val - (R.index i.castSucc).val
+
+    have htlt :
+        tnat < (R.index i.succ).val - (R.index i.castSucc).val := by
+      dsimp [tnat]
+      omega
+
+    let t :
+        {x // x ∈ Finset.range
+          ((R.index i.succ).val - (R.index i.castSucc).val)} :=
+      ⟨tnat, Finset.mem_range.mpr htlt⟩
+
+    apply Finset.mem_image.mpr
+    refine ⟨t, ?_, ?_⟩
+    · exact Finset.mem_attach _ _
+    · apply Fin.ext
+      dsimp [t, tnat]
+      omega
+
+lemma Refinement.block_disjoint
+    {a b : ℝ} {P P' : Partition a b}
+    (R : Refinement P P')
+    {i k : Fin P.n} (hik : i ≠ k) :
+    Disjoint (R.block i) (R.block k) := by
+  classical
+
+  refine Finset.disjoint_left.mpr ?_
+  intro j hji hjk
+
+  have hji' :
+      (R.index i.castSucc).val ≤ j.val ∧
+      j.val < (R.index i.succ).val :=
+    (Refinement.mem_block_iff R (i := i) (j := j)).mp hji
+
+  have hjk' :
+      (R.index k.castSucc).val ≤ j.val ∧
+      j.val < (R.index k.succ).val :=
+    (Refinement.mem_block_iff R (i := k) (j := j)).mp hjk
+
+  rcases lt_or_gt_of_ne hik with hiklt | hkilt
+
+  · -- case `i < k`
+    have hbase : i.succ ≤ k.castSucc := by
+      change i.val + 1 ≤ k.val
+      exact Nat.succ_le_of_lt hiklt
+
+    have hidx :
+        R.index i.succ ≤ R.index k.castSucc :=
+      R.strictMono_index.monotone hbase
+
+    have hidx_val :
+        (R.index i.succ).val ≤ (R.index k.castSucc).val := by
+      exact hidx
+
+    omega
+
+  · -- case `k < i`
+    have hbase : k.succ ≤ i.castSucc := by
+      change k.val + 1 ≤ i.val
+      exact Nat.succ_le_of_lt hkilt
+
+    have hidx :
+        R.index k.succ ≤ R.index i.castSucc :=
+      R.strictMono_index.monotone hbase
+
+    have hidx_val :
+        (R.index k.succ).val ≤ (R.index i.castSucc).val := by
+      exact hidx
+
+    omega
+
+
+lemma Refinement.index_zero
+    {a b : ℝ} {P P' : Partition a b}
+    (R : Refinement P P') :
+    R.index (0 : Fin (P.n + 1)) = (0 : Fin (P'.n + 1)) := by
+  by_contra hne
+
+  have hne' :
+      (0 : Fin (P'.n + 1)) ≠ R.index (0 : Fin (P.n + 1)) := by
+    intro h
+    exact hne h.symm
+
+  have hlt :
+      (0 : Fin (P'.n + 1)) < R.index (0 : Fin (P.n + 1)) := by
+    exact lt_of_le_of_ne (Fin.zero_le _) hne'
+
+  have hpts_lt :
+      P'.pts (0 : Fin (P'.n + 1)) <
+        P'.pts (R.index (0 : Fin (P.n + 1))) :=
+    P'.strict_mono hlt
+
+  have : a < a := by
+    calc
+      a = P'.pts (0 : Fin (P'.n + 1)) := P'.pts_start.symm
+      _ < P'.pts (R.index (0 : Fin (P.n + 1))) := hpts_lt
+      _ = P.pts (0 : Fin (P.n + 1)) := (R.index_spec 0).symm
+      _ = a := P.pts_start
+
+  exact (lt_irrefl a) this
+
+
+lemma Refinement.index_last
+    {a b : ℝ} {P P' : Partition a b}
+    (R : Refinement P P') :
+    R.index (Fin.last P.n) = Fin.last P'.n := by
+  by_contra hne
+
+  have hlt :
+      R.index (Fin.last P.n) < Fin.last P'.n := by
+    exact lt_of_le_of_ne (Fin.le_last _) hne
+
+  have hpts_lt :
+      P'.pts (R.index (Fin.last P.n)) <
+        P'.pts (Fin.last P'.n) :=
+    P'.strict_mono hlt
+
+  have : b < b := by
+    calc
+      b = P.pts (Fin.last P.n) := P.pts_end.symm
+      _ = P'.pts (R.index (Fin.last P.n)) := R.index_spec (Fin.last P.n)
+      _ < P'.pts (Fin.last P'.n) := hpts_lt
+      _ = b := P'.pts_end
+
+  exact (lt_irrefl b) this
+
+lemma Refinement.exists_mem_block
+    {a b : ℝ} {P P' : Partition a b}
+    (R : Refinement P P')
+    (j : Fin P'.n) :
+    ∃ i : Fin P.n, j ∈ R.block i := by
+  classical
+
+  let Q : ℕ → Prop :=
+    fun q =>
+      ∃ hq : q < P.n + 1,
+        j.val < (R.index ⟨q, hq⟩).val
+
+  have hQ : ∃ q : ℕ, Q q := by
+    refine ⟨P.n, ?_⟩
+    dsimp [Q]
+    refine ⟨by omega, ?_⟩
+
+    have hlast_fin :
+        (⟨P.n, by omega⟩ : Fin (P.n + 1)) = Fin.last P.n := by
+      apply Fin.ext
+      simp
+
+    have hlast_val :
+        (R.index (⟨P.n, by omega⟩ : Fin (P.n + 1))).val = P'.n := by
+      rw [hlast_fin, Refinement.index_last R]
+      rfl
+
+    rw [hlast_val]
+    exact j.isLt
+
+  let q : ℕ := Nat.find hQ
+
+  have hqspec : Q q := Nat.find_spec hQ
+
+  rcases hqspec with ⟨hq_bound, hj_lt_q⟩
+
+  have hq_pos : 0 < q := by
+    by_contra hnot
+    have hq0 : q = 0 := Nat.eq_zero_of_not_pos hnot
+
+    have hfin0 :
+        (⟨q, hq_bound⟩ : Fin (P.n + 1)) =
+          (0 : Fin (P.n + 1)) := by
+      apply Fin.ext
+      simp [hq0]
+
+    have : j.val < 0 := by
+      calc
+        j.val < (R.index (⟨q, hq_bound⟩ : Fin (P.n + 1))).val := hj_lt_q
+        _ = (R.index (0 : Fin (P.n + 1))).val := by
+          rw [hfin0]
+        _ = 0 := by
+          rw [Refinement.index_zero R]
+          rfl
+
+    omega
+
+  have hprev_lt_q : q - 1 < q := by
+    omega
+
+  have hnot_prev : ¬ Q (q - 1) := by
+    exact Nat.find_min hQ hprev_lt_q
+
+  have hprev_bound : q - 1 < P.n + 1 := by
+    omega
+
+  have hprev_le :
+      (R.index (⟨q - 1, hprev_bound⟩ : Fin (P.n + 1))).val ≤ j.val := by
+    by_contra hnot_le
+    have hlt :
+        j.val <
+          (R.index (⟨q - 1, hprev_bound⟩ : Fin (P.n + 1))).val :=
+      Nat.lt_of_not_ge hnot_le
+
+    exact hnot_prev ⟨hprev_bound, hlt⟩
+
+  let i : Fin P.n := ⟨q - 1, by omega⟩
+
+  refine ⟨i, ?_⟩
+
+  apply (Refinement.mem_block_iff R (i := i) (j := j)).mpr
+  constructor
+  · have hcast :
+        i.castSucc =
+          (⟨q - 1, hprev_bound⟩ : Fin (P.n + 1)) := by
+      apply Fin.ext
+      simp [i]
+
+    simpa [hcast] using hprev_le
+
+  · have hsucc :
+        i.succ =
+          (⟨q, hq_bound⟩ : Fin (P.n + 1)) := by
+      apply Fin.ext
+      simp [i]
+      omega
+
+    simpa [hsucc] using hj_lt_q
+
+
+lemma Refinement.biUnion_block_eq_univ
+    {a b : ℝ} {P P' : Partition a b}
+    (R : Refinement P P') :
+    (Finset.univ.biUnion fun i : Fin P.n => R.block i)
+      =
+    (Finset.univ : Finset (Fin P'.n)) := by
+  classical
+
+  ext j
+  constructor
+  · intro _hj
+    exact Finset.mem_univ j
+
+  · intro _hj
+    rcases Refinement.exists_mem_block R j with ⟨i, hi⟩
+    exact Finset.mem_biUnion.mpr ⟨i, Finset.mem_univ i, hi⟩
+
+
+
+lemma Refinement.sum_blocks_eq_sum_univ
+    {a b : ℝ}
+    {P P' : Partition a b}
+    (R : Refinement P P')
+    (g : Fin P'.n → ℝ) :
+    (∑ i : Fin P.n, ∑ j ∈ R.block i, g j)
+      =
+    ∑ j : Fin P'.n, g j := by
+  classical
+
+  change
+    Finset.sum (Finset.univ : Finset (Fin P.n))
+      (fun i => Finset.sum (R.block i) g)
+      =
+    Finset.sum (Finset.univ : Finset (Fin P'.n)) g
+
+  have hsum :
+      Finset.sum
+        ((Finset.univ : Finset (Fin P.n)).biUnion
+          (fun i => R.block i))
+        g
+        =
+      Finset.sum (Finset.univ : Finset (Fin P.n))
+        (fun i => Finset.sum (R.block i) g) := by
+    apply Finset.sum_biUnion
+    intro i _hi k _hk hik
+    exact Refinement.block_disjoint R hik
+
+  calc
+    Finset.sum (Finset.univ : Finset (Fin P.n))
+      (fun i => Finset.sum (R.block i) g)
+        =
+      Finset.sum
+        ((Finset.univ : Finset (Fin P.n)).biUnion
+          (fun i => R.block i))
+        g := hsum.symm
+    _ =
+      Finset.sum (Finset.univ : Finset (Fin P'.n)) g := by
+        rw [Refinement.biUnion_block_eq_univ R]
+
+
+
+
+lemma lowerSum_le_of_refinement {a b : ℝ} {f α : ℝ → ℝ}
+    (hs : SourceHypotheses a b f α)
+    {P P' : Partition a b}
+    (R : Refinement P P') :
+    lowerSum P f α ≤ lowerSum P' f α := by
+  classical
+  rcases hs with ⟨hab, hfAbove, hfBelow, hαmono⟩
+
+  unfold lowerSum
+
+  calc
+    (∑ i : Fin P.n,
+      lowerStep P f i *
+        (α (P.pts i.succ) - α (P.pts i.castSucc)))
+        =
+      ∑ i : Fin P.n,
+        lowerStep P f i *
+          (∑ j ∈  R.block i,
+            (α (P'.pts j.succ) - α (P'.pts j.castSucc))) := by
+        refine Finset.sum_congr rfl ?_
+        intro i _hi
+        rw [R.sum_block_increment i]
+
+    _ =
+      ∑ i : Fin P.n,
+        ∑ j ∈  R.block i,
+          lowerStep P f i *
+            (α (P'.pts j.succ) - α (P'.pts j.castSucc)) := by
+        refine Finset.sum_congr rfl ?_
+        intro i _hi
+        rw [Finset.mul_sum]
+
+    _ ≤
+      ∑ i : Fin P.n,
+        ∑ j ∈  R.block i,
+          lowerStep P' f j *
+            (α (P'.pts j.succ) - α (P'.pts j.castSucc)) := by
+        refine Finset.sum_le_sum ?_
+        intro i _hi
+        refine Finset.sum_le_sum ?_
+        intro j hj
+
+        have hsub :
+            Partition.subinterval P' j ⊆ Partition.subinterval P i :=
+          R.subinterval_subset_of_mem_block hj
+
+        have hstep :
+            lowerStep P f i ≤ lowerStep P' f j :=
+          lowerStep_le_of_subinterval_subset P P' i j hfBelow hsub
+
+        have hinc :
+            0 ≤ α (P'.pts j.succ) - α (P'.pts j.castSucc) :=
+          DarbouxRS.partition_increment_nonneg_of_source_core P'
+            ⟨hab, hfAbove, hfBelow, hαmono⟩
+
+        exact mul_le_mul_of_nonneg_right hstep hinc
+
+    _ =
+      ∑ j : Fin P'.n,
+        lowerStep P' f j *
+          (α (P'.pts j.succ) - α (P'.pts j.castSucc)) := by
+        rw [R.sum_blocks_eq_sum_univ]
+
+    _ = lowerSum P' f α := by
+        rfl
+
+lemma upperSum_le_of_refinement {a b : ℝ} {f α : ℝ → ℝ}
+    (hs : SourceHypotheses a b f α)
+    {P P' : Partition a b}
+    (R : Refinement P P') :
+    upperSum P' f α ≤ upperSum P f α := by
+  classical
+  rcases hs with ⟨hab, hfAbove, hfBelow, hαmono⟩
+
+  unfold upperSum
+
+  calc
+    (∑ j : Fin P'.n,
+      upperStep P' f j *
+        (α (P'.pts j.succ) - α (P'.pts j.castSucc)))
+        =
+      ∑ i : Fin P.n,
+        ∑ j ∈ R.block i,
+          upperStep P' f j *
+            (α (P'.pts j.succ) - α (P'.pts j.castSucc)) := by
+        rw [← R.sum_blocks_eq_sum_univ]
+
+    _ ≤
+      ∑ i : Fin P.n,
+        ∑ j ∈ R.block i,
+          upperStep P f i *
+            (α (P'.pts j.succ) - α (P'.pts j.castSucc)) := by
+        refine Finset.sum_le_sum ?_
+        intro i _hi
+        refine Finset.sum_le_sum ?_
+        intro j hj
+
+        have hsub :
+            Partition.subinterval P' j ⊆ Partition.subinterval P i :=
+          R.subinterval_subset_of_mem_block hj
+
+        have hstep :
+            upperStep P' f j ≤ upperStep P f i :=
+          upperStep_le_of_subinterval_subset P P' i j hfAbove hsub
+
+        have hinc :
+            0 ≤ α (P'.pts j.succ) - α (P'.pts j.castSucc) :=
+          DarbouxRS.partition_increment_nonneg_of_source_core P'
+            ⟨hab, hfAbove, hfBelow, hαmono⟩
+
+        exact mul_le_mul_of_nonneg_right hstep hinc
+
+    _ =
+      ∑ i : Fin P.n,
+        upperStep P f i *
+          (∑ j ∈ R.block i,
+            (α (P'.pts j.succ) - α (P'.pts j.castSucc))) := by
+        refine Finset.sum_congr rfl ?_
+        intro i _hi
+        rw [Finset.mul_sum]
+
+    _ =
+      ∑ i : Fin P.n,
+        upperStep P f i *
+          (α (P.pts i.succ) - α (P.pts i.castSucc)) := by
+        refine Finset.sum_congr rfl ?_
+        intro i _hi
+        rw [R.sum_block_increment i]
+
+    _ = upperSum P f α := by
+        rfl
+
+
+
+
+namespace Partition
+
+def carrier {a b : ℝ} (P : Partition a b) : Finset ℝ :=
+  Finset.univ.image P.pts
+
+lemma pts_mem_carrier {a b : ℝ} (P : Partition a b) (i : Fin (P.n + 1)) :
+    P.pts i ∈ P.carrier := by
+  unfold carrier
+  exact Finset.mem_image.mpr ⟨i, Finset.mem_univ i, rfl⟩
+
+lemma start_mem_carrier {a b : ℝ} (P : Partition a b) :
+    a ∈ P.carrier := by
+  simpa [P.pts_start] using
+    (P.pts_mem_carrier (0 : Fin (P.n + 1)))
+
+lemma end_mem_carrier {a b : ℝ} (P : Partition a b) :
+    b ∈ P.carrier := by
+  simpa [P.pts_end] using
+    (P.pts_mem_carrier (Fin.last P.n))
+
+lemma carrier_subset_Icc {a b : ℝ} (P : Partition a b) :
+    ↑P.carrier ⊆ Set.Icc a b := by
+  intro x hx
+  unfold carrier at hx
+  rcases Finset.mem_image.mp hx with ⟨i, _hi, rfl⟩
+  exact DarbouxRS.partition_pts_mem_Icc_core P
+
+end Partition
+
+noncomputable def Refinement.of_exists
+    {a b : ℝ} {P P' : Partition a b}
+    (h : ∀ i : Fin (P.n + 1),
+      ∃ j : Fin (P'.n + 1), P.pts i = P'.pts j) :
+    Refinement P P' where
+  index := fun i => Classical.choose (h i)
+  index_spec := fun i => Classical.choose_spec (h i)
+  strictMono_index := by
+    intro i j hij
+    by_contra hnot
+
+    have hji :
+        Classical.choose (h j) ≤ Classical.choose (h i) :=
+      le_of_not_gt hnot
+
+    have hP'le :
+        P'.pts (Classical.choose (h j)) ≤
+        P'.pts (Classical.choose (h i)) :=
+      P'.strict_mono.monotone hji
+
+    have hi :
+        P.pts i = P'.pts (Classical.choose (h i)) :=
+      Classical.choose_spec (h i)
+
+    have hj :
+        P.pts j = P'.pts (Classical.choose (h j)) :=
+      Classical.choose_spec (h j)
+
+    have hPle : P.pts j ≤ P.pts i := by
+      calc
+        P.pts j = P'.pts (Classical.choose (h j)) := hj
+        _ ≤ P'.pts (Classical.choose (h i)) := hP'le
+        _ = P.pts i := hi.symm
+
+    exact not_le_of_gt (P.strict_mono hij) hPle
+
+
+/--
+Build a partition from a finite set of points containing `a` and `b`,
+contained in `[a,b]`, by sorting the set increasingly.
+-/
+noncomputable def Partition.ofFinset
+    {a b : ℝ} (hab : a < b)
+    (s : Finset ℝ)
+    (ha : a ∈ s) (hb : b ∈ s)
+    (hsub : ↑s ⊆ Set.Icc a b) :
+    Partition a b := by
+  classical
+
+  have hpair : ({a, b} : Finset ℝ) ⊆ s := by
+    intro x hx
+    simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+    rcases hx with rfl | rfl
+    · exact ha
+    · exact hb
+
+  have hpair_card : ({a, b} : Finset ℝ).card = 2 := by
+    simp [ne_of_lt hab]
+
+  have hcard_ge_two : 2 ≤ s.card := by
+    calc
+      2 = ({a, b} : Finset ℝ).card := hpair_card.symm
+      _ ≤ s.card := Finset.card_le_card hpair
+
+  have hcard_pos : 0 < s.card := by omega
+
+  have hcard_eq : s.card - 1 + 1 = s.card := by
+    omega
+
+  have hn : 0 < s.card - 1 := by
+    omega
+
+  let e : Fin s.card ≃o s := s.orderIsoOfFin (k := s.card) rfl
+
+  refine
+  { n := s.card - 1
+    hn := hn
+    pts := fun i => (e (Fin.cast hcard_eq i)).1
+    pts_start := ?_
+    pts_end := ?_
+    strict_mono := ?_ }
+
+  · -- first point is `a`
+    let i0 : Fin s.card :=
+      Fin.cast hcard_eq (0 : Fin (s.card - 1 + 1))
+
+    obtain ⟨ia, hia⟩ := e.surjective ⟨a, ha⟩
+
+    have hi0_le : i0 ≤ ia := by
+      change i0.val ≤ ia.val
+      simp [i0]
+
+    have hleft : (e i0).1 ≤ a := by
+      calc
+        (e i0).1 ≤ (e ia).1 := e.monotone hi0_le
+        _ = a := congrArg Subtype.val hia
+
+    have hright : a ≤ (e i0).1 := by
+      exact (hsub (e i0).2).1
+
+    change (e (Fin.cast hcard_eq (0 : Fin (s.card - 1 + 1)))).1 = a
+    exact le_antisymm hleft hright
+
+  · -- last point is `b`
+    let ilast : Fin s.card :=
+      Fin.cast hcard_eq (Fin.last (s.card - 1))
+
+    obtain ⟨ib, hib⟩ := e.surjective ⟨b, hb⟩
+
+    have hib_le : ib ≤ ilast := by
+      change ib.val ≤ ilast.val
+      simp [ilast]
+      exact Nat.le_pred_of_lt ib.isLt
+
+    have hleft : b ≤ (e ilast).1 := by
+      calc
+        b = (e ib).1 := (congrArg Subtype.val hib).symm
+        _ ≤ (e ilast).1 := e.monotone hib_le
+
+    have hright : (e ilast).1 ≤ b := by
+      exact (hsub (e ilast).2).2
+
+    change
+      (e (Fin.cast hcard_eq (Fin.last (s.card - 1)))).1 = b
+    exact le_antisymm hright hleft
+
+  · -- strict monotonicity
+    intro i j hij
+    change
+      (e (Fin.cast hcard_eq i)).1 <
+      (e (Fin.cast hcard_eq j)).1
+
+    have hcast :
+        Fin.cast hcard_eq i < Fin.cast hcard_eq j := by
+      change i.val < j.val
+      exact hij
+
+    exact e.strictMono hcast
+
+lemma Partition.ofFinset_contains
+    {a b : ℝ} (hab : a < b)
+    (s : Finset ℝ)
+    (ha : a ∈ s) (hb : b ∈ s)
+    (hsub : ↑s ⊆ Set.Icc a b)
+    {x : ℝ} (hx : x ∈ s) :
+    ∃ j : Fin ((Partition.ofFinset hab s ha hb hsub).n + 1),
+      (Partition.ofFinset hab s ha hb hsub).pts j = x := by
+  classical
+
+  have hpair : ({a, b} : Finset ℝ) ⊆ s := by
+    intro y hy
+    simp only [Finset.mem_insert, Finset.mem_singleton] at hy
+    rcases hy with rfl | rfl
+    · exact ha
+    · exact hb
+
+  have hpair_card : ({a, b} : Finset ℝ).card = 2 := by
+    simp [ne_of_lt hab]
+
+  have hcard_ge_two : 2 ≤ s.card := by
+    calc
+      2 = ({a, b} : Finset ℝ).card := hpair_card.symm
+      _ ≤ s.card := Finset.card_le_card hpair
+
+  have hcard_eq : s.card - 1 + 1 = s.card := by
+    omega
+
+  let e : Fin s.card ≃o s := s.orderIsoOfFin (k := s.card) rfl
+
+  obtain ⟨ix, hix⟩ := e.surjective ⟨x, hx⟩
+
+  let j : Fin (s.card - 1 + 1) :=
+    Fin.cast hcard_eq.symm ix
+
+  refine ⟨j, ?_⟩
+
+  change (e (Fin.cast hcard_eq j)).1 = x
+
+  have hcast : Fin.cast hcard_eq j = ix := by
+    ext
+    simp [j]
+
+  rw [hcast]
+  exact congrArg Subtype.val hix
+
+
+lemma partition_endpoint_lt {a b : ℝ} (P : Partition a b) :
+    a < b := by
+  have hzero_last : (0 : Fin (P.n + 1)) < Fin.last P.n := by
+    change 0 < P.n
+    exact P.hn
+
+  calc
+    a = P.pts 0 := P.pts_start.symm
+    _ < P.pts (Fin.last P.n) := P.strict_mono hzero_last
+    _ = b := P.pts_end
+
+
+lemma exists_common_refinement {a b : ℝ} (P1 P2 : Partition a b) :
+    ∃ P : Partition a b,
+      ∃ _R1 : Refinement P1 P,
+        ∃ _R2 : Refinement P2 P,
+          True := by
+  classical
+
+  have hab : a < b := partition_endpoint_lt P1
+
+  let s : Finset ℝ := P1.carrier ∪ P2.carrier
+
+  have ha : a ∈ s := by
+    exact Finset.mem_union_left _ P1.start_mem_carrier
+
+  have hb : b ∈ s := by
+    exact Finset.mem_union_left _ P1.end_mem_carrier
+
+  have hsub : ↑s ⊆ Set.Icc a b := by
+    intro x hx
+    rcases Finset.mem_union.mp hx with hx1 | hx2
+    · exact P1.carrier_subset_Icc hx1
+    · exact P2.carrier_subset_Icc hx2
+
+  let P : Partition a b :=
+    Partition.ofFinset hab s ha hb hsub
+
+  have hP1_exists :
+      ∀ i : Fin (P1.n + 1),
+        ∃ j : Fin (P.n + 1), P1.pts i = P.pts j := by
+    intro i
+    have hx : P1.pts i ∈ s := by
+      exact Finset.mem_union_left _ (P1.pts_mem_carrier i)
+
+    rcases Partition.ofFinset_contains hab s ha hb hsub hx with ⟨j, hj⟩
+    exact ⟨j, hj.symm⟩
+
+  have hP2_exists :
+      ∀ i : Fin (P2.n + 1),
+        ∃ j : Fin (P.n + 1), P2.pts i = P.pts j := by
+    intro i
+    have hx : P2.pts i ∈ s := by
+      exact Finset.mem_union_right _ (P2.pts_mem_carrier i)
+
+    rcases Partition.ofFinset_contains hab s ha hb hsub hx with ⟨j, hj⟩
+    exact ⟨j, hj.symm⟩
+
+  let R1 : Refinement P1 P :=
+    Refinement.of_exists hP1_exists
+
+  let R2 : Refinement P2 P :=
+    Refinement.of_exists hP2_exists
+
+  exact ⟨P, R1, R2, trivial⟩
+
+
+-----------------------------------------------------------------------------
+--  The Fundamental Darboux Inequality
+-----------------------------------------------------------------------------
+
+/--
+Any lower sum is bounded above by any upper sum on the same interval.
+Proven by channeling both sums through their common refinement.
+-/
+lemma lowerSum_le_upperSum_any {a b : ℝ} {f α : ℝ → ℝ}
+    (hs : SourceHypotheses a b f α) (P1 P2 : Partition a b) :
+    lowerSum P1 f α ≤ upperSum P2 f α := by
+  rcases exists_common_refinement P1 P2 with ⟨Q, R1, R2, _⟩
+
+  have h1 : lowerSum P1 f α ≤ lowerSum Q f α :=
+    lowerSum_le_of_refinement hs R1
+
+  have h2 : lowerSum Q f α ≤ upperSum Q f α :=
+    DarbouxRS.lowerSum_le_upperSum_core Q hs
+
+  have h3 : upperSum Q f α ≤ upperSum P2 f α :=
+    upperSum_le_of_refinement hs R2
+
+  exact le_trans h1 (le_trans h2 h3)
+
+
+end Darboux_fundamental_result

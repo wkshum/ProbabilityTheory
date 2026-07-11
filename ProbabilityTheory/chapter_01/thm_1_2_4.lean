@@ -1,1791 +1,1232 @@
 import ProbabilityTheory.chapter_01.def_1_2
+import ProbabilityTheory.chapter_01.thm_1_2
+
 
 /-
-TASK ID: thm_1_2
-TYPE: Theorem_Statement
-SOURCE PLAN: 38_chap1_riemann_stieltjes
-TASK CONTENT:
-\begin{thmbox}{1.2}
-\begin{enumerate}[label=\arabic*.]
-    \item If $f\in \mathcal{R}(\alpha)$ and $g\in \mathcal{R}(\alpha)$, then $f+g\in \mathcal{R}(\alpha)$ and
-    \[
-    \int_a^b f+g\, d\alpha = \int_a^b f\, d\alpha + \int_a^b g\, d\alpha.
-    \]
-    \item If $f\in \mathcal{R}(\alpha)$, then $cf\in \mathcal{R}(\alpha)$ for any constant $c$ and
-    \[
-    \int_a^b cf\, d\alpha = c\int_a^b f\, d\alpha.
-    \]
-    \item If $f,g\in \mathcal{R}(\alpha)$ and $f(x)\le g(x)$ for all $x\in [a,b]$, then
-    \[
-    \int_a^b f\, d\alpha \le \int_a^b g\, d\alpha.
-    \]
-    \item Suppose $a<c<b$. If $f\in \mathcal{R}(\alpha)$ on $[a,c]$ and $f\in \mathcal{R}(\alpha)$ on $[c,b]$, then $f$ is RS-integrable on $[a,b]$, and
-    \[
-    \int_a^b f\, d\alpha = \int_a^c f\, d\alpha + \int_c^b f\, d\alpha.
-    \]
-\end{enumerate}
-\end{thmbox}
-These properties are all analogous to the properties of Riemann integrals, and hence, the proofs are omitted. The following property concerns the effect of changing the function $\alpha(x)$ on the Riemann--Stieltjes integral.
+
+  Theorem 1.2 part 4
+
 -/
 
 
-open Set
+noncomputable section Thm_1_2_4
 
-noncomputable section
+namespace Thm_1_2_4
 
-namespace Thm12Item4
-
---open DarbouxRS
+open scoped BigOperators Pointwise
 
 
+-----------------------------------------------------------------------------
+-- 1. Analytical Helper Lemmas
+-----------------------------------------------------------------------------
 
-/-! ## Split a partition at an existing grid point `c = P.pts k`, `0 < k < P.n`. -/
+/-- Boundedness on [a, b] implies boundedness on the subinterval [a, c]. -/
+lemma sourceHypotheses_left {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b) (h : SourceHypotheses a b f α) :
+    SourceHypotheses a c f α := by
+  -- Unpack the hypotheses on the full interval [a, b]
+  rcases h with ⟨_hab, hAbove, hBelow, hmono⟩
 
-/-- Left piece of a partition split at grid index `k`. -/
-def splitLeft {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k) (hkn : k ≤ P.n)
-    (c : ℝ) (hc : P.pts k = c) : Partition a c where
-  n := k
-  hn := hk0
-  pts := P.pts
-  pts_start := P.pts_start
-  pts_end := hc
-  strict_mono := by
-    intro i hi
-    exact P.strict_mono i (lt_of_lt_of_le hi hkn)
+  -- Establish that [a, c] is a subset of [a, b]
+  have h_subset : Set.Icc a c ⊆ Set.Icc a b := by
+    intro x hx
+    exact ⟨hx.1, le_trans hx.2 (le_of_lt hcb)⟩
 
-/-- Right piece of a partition split at grid index `k`. -/
-def splitRight {a b : ℝ} (P : Partition a b) (k : ℕ) (hkn : k < P.n)
-    (c : ℝ) (hc : P.pts k = c) : Partition c b where
-  n := P.n - k
-  hn := Nat.sub_pos_of_lt hkn
-  pts := fun j => P.pts (k + j)
-  pts_start := by simpa using hc
+  -- Establish the image inclusion manually to avoid Mathlib naming issues
+  have h_img_subset : f '' Set.Icc a c ⊆ f '' Set.Icc a b := by
+    rintro _ ⟨x, hx, rfl⟩
+    exact ⟨x, h_subset hx, rfl⟩
+
+  -- Construct the new SourceHypotheses
+  refine ⟨hac, ?_, ?_, ?_⟩
+  · exact BddAbove.mono h_img_subset hAbove
+  · exact BddBelow.mono h_img_subset hBelow
+  · exact MonotoneOn.mono hmono h_subset
+
+
+
+/-- Boundedness on [a, b] implies boundedness on the subinterval [c, b]. -/
+lemma sourceHypotheses_right {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b) (h : SourceHypotheses a b f α) :
+    SourceHypotheses c b f α := by
+  -- Unpack the hypotheses on the full interval [a, b]
+  rcases h with ⟨_hab, hAbove, hBelow, hmono⟩
+
+  -- Establish that [c, b] is a subset of [a, b]
+  have h_subset : Set.Icc c b ⊆ Set.Icc a b := by
+    intro x hx
+    exact ⟨le_trans (le_of_lt hac) hx.1, hx.2⟩
+
+  -- Establish the image inclusion manually
+  have h_img_subset : f '' Set.Icc c b ⊆ f '' Set.Icc a b := by
+    rintro _ ⟨x, hx, rfl⟩
+    exact ⟨x, h_subset hx, rfl⟩
+
+  -- Construct the new SourceHypotheses
+  refine ⟨hcb, ?_, ?_, ?_⟩
+  · exact BddAbove.mono h_img_subset hAbove
+  · exact BddBelow.mono h_img_subset hBelow
+  · exact MonotoneOn.mono hmono h_subset
+
+
+
+noncomputable section SubintervalIntegrability
+
+-----------------------------------------------------------------------------
+-- 1. Constructing the Exact Value (Darboux Supremum)
+-----------------------------------------------------------------------------
+
+/-- The set of all possible lower sums on the interval [a, c] -/
+def lowerSumSet (a c : ℝ) (f α : ℝ → ℝ) : Set ℝ :=
+  { y | ∃ P : Partition a c, y = lowerSum P f α }
+
+/--
+Because we must explicitly provide a `value` for the integral witness,
+we define it analytically as the supremum of all lower sums on [a, c].
+-/
+noncomputable def lowerDarboux (a c : ℝ) (f α : ℝ → ℝ) : ℝ :=
+  sSup (lowerSumSet a c f α)
+
+-----------------------------------------------------------------------------
+-- 2. Partition Surgery
+-----------------------------------------------------------------------------
+
+/--
+Concatenating a partition of [a, c] and a partition of [c, b]
+yields a valid, strictly monotonic partition of [a, b].
+-/
+def concatPartition {a c b : ℝ} (P1 : Partition a c) (P2 : Partition c b) : Partition a b where
+  n := P1.n + P2.n
+  hn := by
+    have h1 := P1.hn
+    have h2 := P2.hn
+    omega
+  pts := fun i =>
+    -- If the index is in the left partition's range, use P1
+    if h : i.val ≤ P1.n then
+      P1.pts ⟨i.val, by omega⟩
+    -- Otherwise, shift the index and use P2
+    else
+      P2.pts ⟨i.val - P1.n, by have := i.isLt; omega⟩
+
+  pts_start := by
+    -- Lean automatically evaluates the `if 0 ≤ P1.n` to true!
+    exact P1.pts_start
+
   pts_end := by
-    have hkk : k + (P.n - k) = P.n := by omega
-    rw [hkk]; exact P.pts_end
-  strict_mono := by
-    intro j hj
-    have hlt : k + j < P.n := by omega
-    have hsm := P.strict_mono (k + j) hlt
-    have : k + (j + 1) = (k + j) + 1 := by omega
-    rw [this]
-    exact hsm
-
-/-- Per-cell step equality: the left piece reuses `P`'s cells verbatim. -/
-lemma upperStep_splitLeft {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k)
-    (hkn : k ≤ P.n) (c : ℝ) (hc : P.pts k = c) (f : ℝ → ℝ) {i : ℕ} :
-    upperStep (splitLeft P k hk0 hkn c hc) f i = upperStep P f i := rfl
-
-lemma lowerStep_splitLeft {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k)
-    (hkn : k ≤ P.n) (c : ℝ) (hc : P.pts k = c) (f : ℝ → ℝ) {i : ℕ} :
-    lowerStep (splitLeft P k hk0 hkn c hc) f i = lowerStep P f i := rfl
-
-lemma upperStep_splitRight {a b : ℝ} (P : Partition a b) (k : ℕ) (hkn : k < P.n)
-    (c : ℝ) (hc : P.pts k = c) (f : ℝ → ℝ) {j : ℕ} :
-    upperStep (splitRight P k hkn c hc) f j = upperStep P f (k + j) := rfl
-
-lemma lowerStep_splitRight {a b : ℝ} (P : Partition a b) (k : ℕ) (hkn : k < P.n)
-    (c : ℝ) (hc : P.pts k = c) (f : ℝ → ℝ) {j : ℕ} :
-    lowerStep (splitRight P k hkn c hc) f j = lowerStep P f (k + j) := rfl
-
-/-! ### Additivity of the sums across a grid-point split. -/
-
-lemma upperSum_split {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k)
-    (hkn : k < P.n) (c : ℝ) (hc : P.pts k = c) (f α : ℝ → ℝ) :
-    upperSum P f α =
-      upperSum (splitLeft P k hk0 (le_of_lt hkn) c hc) f α +
-        upperSum (splitRight P k hkn c hc) f α := by
-  have hsplit : k + (P.n - k) = P.n := by omega
-  unfold upperSum
-  conv_lhs => rw [← hsplit, Finset.sum_range_add]
-  rfl
-
-lemma lowerSum_split {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k)
-    (hkn : k < P.n) (c : ℝ) (hc : P.pts k = c) (f α : ℝ → ℝ) :
-    lowerSum P f α =
-      lowerSum (splitLeft P k hk0 (le_of_lt hkn) c hc) f α +
-        lowerSum (splitRight P k hkn c hc) f α := by
-  have hsplit : k + (P.n - k) = P.n := by omega
-  unfold lowerSum
-  conv_lhs => rw [← hsplit, Finset.sum_range_add]
-  rfl
-
-lemma taggedSum_split {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k)
-    (hkn : k < P.n) (c : ℝ) (hc : P.pts k = c) (tags : ℕ → ℝ) (f α : ℝ → ℝ) :
-    taggedSum P tags f α =
-      taggedSum (splitLeft P k hk0 (le_of_lt hkn) c hc) tags f α +
-        taggedSum (splitRight P k hkn c hc) (fun j => tags (k + j)) f α := by
-  have hsplit : k + (P.n - k) = P.n := by omega
-  unfold taggedSum
-  conv_lhs => rw [← hsplit, Finset.sum_range_add]
-  rfl
-
-/-! ### Mesh monotonicity: each split piece has mesh ≤ mesh P. -/
-
-lemma partition_length_le_mesh {a b : ℝ} (P : Partition a b) {i : ℕ} (hi : i < P.n) :
-    P.pts (i + 1) - P.pts i ≤ P.mesh := by
-  unfold Partition.mesh
-  exact Finset.le_sup' (s := Finset.range P.n)
-    (f := fun j => P.pts (j + 1) - P.pts j) (Finset.mem_range.mpr hi)
-
-lemma mesh_splitLeft_le {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k)
-    (hkn : k < P.n) (c : ℝ) (hc : P.pts k = c) :
-    (splitLeft P k hk0 (le_of_lt hkn) c hc).mesh ≤ P.mesh := by
-  unfold Partition.mesh
-  apply Finset.sup'_le
-  intro i hi
-  have hi' : i < k := Finset.mem_range.mp hi
-  have : i < P.n := lt_trans hi' hkn
-  exact partition_length_le_mesh P this
-
-lemma mesh_splitRight_le {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k)
-    (hkn : k < P.n) (c : ℝ) (hc : P.pts k = c) :
-    (splitRight P k hkn c hc).mesh ≤ P.mesh := by
-  unfold Partition.mesh
-  apply Finset.sup'_le
-  intro j hj
-  have hj' : j < P.n - k := Finset.mem_range.mp hj
-  have hlt : k + j < P.n := by omega
-  have hstep : P.pts (k + j + 1) - P.pts (k + j) ≤ P.mesh :=
-    partition_length_le_mesh P hlt
-  -- goal: (splitRight ...).pts (j+1) - (splitRight ...).pts j ≤ P.mesh
-  show P.pts (k + (j + 1)) - P.pts (k + j) ≤ P.mesh
-  have : k + (j + 1) = k + j + 1 := by omega
-  rw [this]
-  exact hstep
-
-/-! ## Tag transport across an insertion (seam sub-cells both get tag `d`). -/
-
-/-- Transported tags: seam sub-cells both get tag `d` (which lies in both). -/
-def insTags (tags : ℕ → ℝ) (k : ℕ) (d : ℝ) : ℕ → ℝ :=
-  fun j => if j < k then tags j else if j ≤ k + 1 then d else tags (j - 1)
-
-lemma insTags_lt (tags : ℕ → ℝ) (k : ℕ) (d : ℝ) {j : ℕ} (hj : j < k) :
-    insTags tags k d j = tags j := by simp [insTags, hj]
-
-lemma insTags_seamL (tags : ℕ → ℝ) (k : ℕ) (d : ℝ) :
-    insTags tags k d k = d := by simp [insTags]
-
-lemma insTags_seamR (tags : ℕ → ℝ) (k : ℕ) (d : ℝ) :
-    insTags tags k d (k + 1) = d := by simp [insTags]
-
-lemma insTags_gt (tags : ℕ → ℝ) (k : ℕ) (d : ℝ) {j : ℕ} (hj : k + 1 < j) :
-    insTags tags k d j = tags (j - 1) := by
-  have h1 : ¬ j < k := by omega
-  have h2 : ¬ j ≤ k + 1 := by omega
-  simp [insTags, h1, h2]
-
-/-! ### Tag restriction across a grid-point split. -/
-
-lemma tagsInPartition_splitLeft {a b : ℝ} (P : Partition a b) (k : ℕ) (hk0 : 0 < k)
-    (hkn : k < P.n) (c : ℝ) (hc : P.pts k = c) (tags : ℕ → ℝ)
-    (htags : tagsInPartition P tags) :
-    tagsInPartition (splitLeft P k hk0 (le_of_lt hkn) c hc) tags := by
-  intro i hi
-  have hi' : i < k := hi
-  exact htags i (lt_trans hi' hkn)
-
-lemma tagsInPartition_splitRight {a b : ℝ} (P : Partition a b) (k : ℕ)
-    (hkn : k < P.n) (c : ℝ) (hc : P.pts k = c) (tags : ℕ → ℝ)
-    (htags : tagsInPartition P tags) :
-    tagsInPartition (splitRight P k hkn c hc) (fun j => tags (k + j)) := by
-  intro j hj
-  have hj' : j < P.n - k := hj
-  have hlt : k + j < P.n := by omega
-  have := htags (k + j) hlt
-  -- subinterval (splitRight) j = subinterval P (k+j) definitionally
-  exact this
-
-/-! ## Insert a new grid point `c` strictly inside cell `k` of `P`. -/
-
-/-- The point function of the inserted partition. -/
-def insPts {a b : ℝ} (P : Partition a b) (k : ℕ) (c : ℝ) : ℕ → ℝ :=
-  fun j => if j ≤ k then P.pts j else if j = k + 1 then c else P.pts (j - 1)
-
-lemma insPts_le {a b : ℝ} (P : Partition a b) (k : ℕ) (c : ℝ) {j : ℕ} (hj : j ≤ k) :
-    insPts P k c j = P.pts j := by
-  simp [insPts, hj]
-
-lemma insPts_seam {a b : ℝ} (P : Partition a b) (k : ℕ) (c : ℝ) :
-    insPts P k c (k + 1) = c := by
-  simp [insPts]
-
-lemma insPts_gt {a b : ℝ} (P : Partition a b) (k : ℕ) (c : ℝ) {j : ℕ}
-    (hj : k + 1 < j) :
-    insPts P k c j = P.pts (j - 1) := by
-  have h1 : ¬ j ≤ k := by omega
-  have h2 : j ≠ k + 1 := by omega
-  simp [insPts, h1, h2]
-
-/-- The partition with `c` inserted after index `k`. -/
-def insertPoint {a b : ℝ} (P : Partition a b) (k : ℕ) (hkn : k < P.n)
-    (c : ℝ) (hc1 : P.pts k < c) (hc2 : c < P.pts (k + 1)) : Partition a b where
-  n := P.n + 1
-  hn := by omega
-  pts := insPts P k c
-  pts_start := by rw [insPts_le P k c (Nat.zero_le k)]; exact P.pts_start
-  pts_end := by
-    rw [insPts_gt P k c (by omega)]
-    simp only [Nat.add_sub_cancel]
-    exact P.pts_end
-  strict_mono := by
-    intro j hj
-    rcases lt_trichotomy j k with hlt | heq | hgt
-    · -- j < k : both are P points
-      rw [insPts_le P k c (le_of_lt hlt), insPts_le P k c (by omega)]
-      exact P.strict_mono j (lt_trans hlt hkn)
-    · -- j = k : P.pts k < c
-      subst heq
-      rw [insPts_le P j c (le_refl j), insPts_seam]
-      exact hc1
-    · -- j > k
-      rcases Nat.lt_or_ge j (k + 1) with h | h
-      · omega
-      · rcases Nat.eq_or_lt_of_le h with heq1 | hgt1
-        · -- j = k + 1 : c < P.pts (k+1)
-          rw [← heq1, insPts_seam, insPts_gt P k c (by omega)]
-          have hsimp : k + 1 + 1 - 1 = k + 1 := by omega
-          rw [hsimp]
-          exact hc2
-        · -- j ≥ k + 2 : both are shifted P points
-          rw [insPts_gt P k c hgt1, insPts_gt P k c (by omega)]
-          have hjn : j - 1 < P.n := by omega
-          have hsm := P.strict_mono (j - 1) hjn
-          have he : (j + 1) - 1 = (j - 1) + 1 := by omega
-          rw [he]
-          exact hsm
-
-/-! ### `c` is a grid point of the inserted partition. -/
-
-lemma insertPoint_pts_eq {a b : ℝ} (P : Partition a b) (k : ℕ) (hkn : k < P.n)
-    (c : ℝ) (hc1 : P.pts k < c) (hc2 : c < P.pts (k + 1)) :
-    (insertPoint P k hkn c hc1 hc2).pts = insPts P k c := rfl
-
-lemma insertPoint_pts_seam {a b : ℝ} (P : Partition a b) (k : ℕ) (hkn : k < P.n)
-    (c : ℝ) (hc1 : P.pts k < c) (hc2 : c < P.pts (k + 1)) :
-    (insertPoint P k hkn c hc1 hc2).pts (k + 1) = c := insPts_seam P k c
-
-/-! ### A generic sum comparison across a single-point insertion.
-
-For any real families `u` (the `P`-cell contributions) and split values `uL, uR`
-at the seam cell `k`, if the `P'`-contributions agree with `u` away from the seam
-and split into `uL, uR` there, the sums differ only by `u k - (uL + uR)`. -/
-lemma sum_insert_diff (n k : ℕ) (hk : k < n)
-    (u u' : ℕ → ℝ) (uL uR : ℝ)
-    (hlt : ∀ i, i < k → u' i = u i)
-    (hkL : u' k = uL)
-    (hkR : u' (k + 1) = uR)
-    (hgt : ∀ j, u' (k + 1 + (j + 1)) = u (k + (j + 1))) :
-    ∑ i ∈ Finset.range n, u i =
-      (∑ i ∈ Finset.range (n + 1), u' i) - (uL + uR) + u k := by
-  -- Split range n at k: [0,k) ++ {k+j : j < n-k}
-  have hsplitn : k + (n - k) = n := by omega
-  have hnk : n - k = (n - k - 1) + 1 := by omega
-  -- LHS
-  have hLHS : ∑ i ∈ Finset.range n, u i
-      = (∑ i ∈ Finset.range k, u i)
-        + ∑ j ∈ Finset.range (n - k), u (k + j) := by
-    conv_lhs => rw [← hsplitn, Finset.sum_range_add]
-  -- RHS sum over range (n+1): split at k+1 into [0,k+1) ++ shifted
-  have hsplitn1 : (k + 1) + (n - k) = n + 1 := by omega
-  have hRHS : ∑ i ∈ Finset.range (n + 1), u' i
-      = (∑ i ∈ Finset.range (k + 1), u' i)
-        + ∑ j ∈ Finset.range (n - k), u' (k + 1 + j) := by
-    conv_lhs => rw [← hsplitn1, Finset.sum_range_add]
-  -- Decompose the u-tail: peel index 0.
-  have hUtail : ∑ j ∈ Finset.range (n - k), u (k + j)
-      = (∑ j ∈ Finset.range (n - k - 1), u (k + (j + 1))) + u k := by
-    rw [hnk, Finset.sum_range_succ']
-    simp
-  -- Decompose the u'-left block range (k+1): peel last index k.
-  have hU'left : ∑ i ∈ Finset.range (k + 1), u' i
-      = (∑ i ∈ Finset.range k, u' i) + u' k :=
-    Finset.sum_range_succ (fun i => u' i) k
-  -- Decompose the u'-tail: peel index 0.
-  have hU'tail : ∑ j ∈ Finset.range (n - k), u' (k + 1 + j)
-      = (∑ j ∈ Finset.range (n - k - 1), u' (k + 1 + (j + 1))) + u' (k + 1) := by
-    rw [hnk, Finset.sum_range_succ']
-    simp
-  -- Termwise equalities.
-  have hleft : ∑ i ∈ Finset.range k, u' i = ∑ i ∈ Finset.range k, u i :=
-    Finset.sum_congr rfl (fun i hi => hlt i (Finset.mem_range.mp hi))
-  have htail : ∑ j ∈ Finset.range (n - k - 1), u' (k + 1 + (j + 1))
-      = ∑ j ∈ Finset.range (n - k - 1), u (k + (j + 1)) :=
-    Finset.sum_congr rfl (fun j _ => hgt j)
-  rw [hLHS, hRHS, hUtail, hU'left, hU'tail, hleft, htail, hkL, hkR]
-  ring
-
-/-! ### Cell identities between `P` and `P' = insertPoint P k ...`. -/
-
-variable {a b : ℝ}
-
-section InsertCells
-variable (P : Partition a b) (k : ℕ) (hkn : k < P.n)
-  (c : ℝ) (hc1 : P.pts k < c) (hc2 : c < P.pts (k + 1))
-
-/-- Away-from-seam cells (index `< k`) coincide. -/
-lemma insert_subinterval_lt {i : ℕ} (hi : i < k) :
-    Partition.subinterval (insertPoint P k hkn c hc1 hc2) i = Partition.subinterval P i := by
-  unfold Partition.subinterval
-  simp only [insertPoint_pts_eq]
-  rw [insPts_le P k c (le_of_lt hi), insPts_le P k c (by omega : i + 1 ≤ k)]
-
-/-- Seam left sub-cell is `[P.pts k, c]`. -/
-lemma insert_subinterval_seamL :
-    Partition.subinterval (insertPoint P k hkn c hc1 hc2) k = Icc (P.pts k) c := by
-  unfold Partition.subinterval
-  simp only [insertPoint_pts_eq]
-  rw [insPts_le P k c (le_refl k), insPts_seam P k c]
-
-/-- Seam right sub-cell is `[c, P.pts (k+1)]`. -/
-lemma insert_subinterval_seamR :
-    Partition.subinterval (insertPoint P k hkn c hc1 hc2) (k + 1) = Icc c (P.pts (k + 1)) := by
-  unfold Partition.subinterval
-  simp only [insertPoint_pts_eq]
-  rw [insPts_seam P k c, insPts_gt P k c (by omega : k + 1 < k + 1 + 1)]
-  rw [show k + 1 + 1 - 1 = k + 1 from by omega]
-
-/-- Shifted cells (index `≥ k+2`) coincide with `P`'s cells (index `≥ k+1`). -/
-lemma insert_subinterval_gt (j : ℕ) :
-    Partition.Partition.subinterval (insertPoint P k hkn c hc1 hc2) (k + 1 + (j + 1))
-      = Partition.subinterval P (k + (j + 1)) := by
-  unfold Partition.subinterval
-  simp only [insertPoint_pts_eq]
-  rw [insPts_gt P k c (by omega : k + 1 < k + 1 + (j + 1)),
-     insPts_gt P k c (by omega : k + 1 < k + 1 + (j + 1) + 1)]
-  congr 1
-  · congr 1; omega
-  · congr 1; omega
-
-/-- Step equalities from the cell identities. -/
-lemma insert_upperStep_lt (f : ℝ → ℝ) {i : ℕ} (hi : i < k) :
-    upperStep (insertPoint P k hkn c hc1 hc2) f i = upperStep P f i := by
-  unfold upperStep; rw [insert_subinterval_lt P k hkn c hc1 hc2 hi]
-
-lemma insert_lowerStep_lt (f : ℝ → ℝ) {i : ℕ} (hi : i < k) :
-    lowerStep (insertPoint P k hkn c hc1 hc2) f i = lowerStep P f i := by
-  unfold lowerStep; rw [insert_subinterval_lt P k hkn c hc1 hc2 hi]
-
-lemma insert_upperStep_gt (f : ℝ → ℝ) (j : ℕ) :
-    upperStep (insertPoint P k hkn c hc1 hc2) f (k + 1 + (j + 1))
-      = upperStep P f (k + (j + 1)) := by
-  unfold upperStep; rw [insert_subinterval_gt P k hkn c hc1 hc2 j]
-
-lemma insert_lowerStep_gt (f : ℝ → ℝ) (j : ℕ) :
-    lowerStep (insertPoint P k hkn c hc1 hc2) f (k + 1 + (j + 1))
-      = lowerStep P f (k + (j + 1)) := by
-  unfold lowerStep; rw [insert_subinterval_gt P k hkn c hc1 hc2 j]
-
-/-- `pts` values needed for the α-increments. -/
-lemma insert_pts_lt {i : ℕ} (hi : i ≤ k) :
-    (insertPoint P k hkn c hc1 hc2).pts i = P.pts i := by
-  simp only [insertPoint_pts_eq]; exact insPts_le P k c hi
-
-lemma insert_pts_ge (j : ℕ) :
-    (insertPoint P k hkn c hc1 hc2).pts (k + 1 + (j + 1)) = P.pts (k + (j + 1)) := by
-  simp only [insertPoint_pts_eq]
-  rw [insPts_gt P k c (by omega : k + 1 < k + 1 + (j + 1))]
-  congr 1; omega
-
-/-! ### The upper/lower sum change identity across an insertion. -/
-
-lemma upperSum_insert_eq (f α : ℝ → ℝ) :
-    upperSum P f α =
-      upperSum (insertPoint P k hkn c hc1 hc2) f α
-        - (upperStep (insertPoint P k hkn c hc1 hc2) f k * (α c - α (P.pts k))
-            + upperStep (insertPoint P k hkn c hc1 hc2) f (k + 1)
-              * (α (P.pts (k + 1)) - α c))
-        + upperStep P f k * (α (P.pts (k + 1)) - α (P.pts k)) := by
-  have key := sum_insert_diff P.n k hkn
-    (fun i => upperStep P f i * (α (P.pts (i + 1)) - α (P.pts i)))
-    (fun i => upperStep (insertPoint P k hkn c hc1 hc2) f i
-      * (α ((insertPoint P k hkn c hc1 hc2).pts (i + 1))
-          - α ((insertPoint P k hkn c hc1 hc2).pts i)))
-    (upperStep (insertPoint P k hkn c hc1 hc2) f k * (α c - α (P.pts k)))
-    (upperStep (insertPoint P k hkn c hc1 hc2) f (k + 1) * (α (P.pts (k + 1)) - α c))
-    ?hlt ?hkL ?hkR ?hgt
-  · simpa [upperSum] using key
-  case hlt =>
-    intro i hi
-    simp only []
-    rw [insert_upperStep_lt P k hkn c hc1 hc2 f hi,
-       insert_pts_lt P k hkn c hc1 hc2 (by omega : i + 1 ≤ k),
-       insert_pts_lt P k hkn c hc1 hc2 (le_of_lt hi)]
-  case hkL =>
-    simp only []
-    rw [insert_pts_lt P k hkn c hc1 hc2 (le_refl k),
-       insertPoint_pts_seam P k hkn c hc1 hc2]
-  case hkR =>
-    simp only []
-    rw [insertPoint_pts_seam P k hkn c hc1 hc2,
-       show (insertPoint P k hkn c hc1 hc2).pts (k + 1 + 1) = P.pts (k + 1) from by
-         have := insert_pts_ge P k hkn c hc1 hc2 0
-         simpa using this]
-  case hgt =>
-    intro j
-    simp only []
-    rw [insert_upperStep_gt P k hkn c hc1 hc2 f j,
-       insert_pts_ge P k hkn c hc1 hc2 j,
-       show (insertPoint P k hkn c hc1 hc2).pts (k + 1 + (j + 1) + 1)
-           = P.pts (k + (j + 1) + 1) from by
-         have := insert_pts_ge P k hkn c hc1 hc2 (j + 1)
-         rw [show k + 1 + (j + 1 + 1) = k + 1 + (j + 1) + 1 from by omega,
-            show k + (j + 1 + 1) = k + (j + 1) + 1 from by omega] at this
-         exact this]
-
-lemma lowerSum_insert_eq (f α : ℝ → ℝ) :
-    lowerSum P f α =
-      lowerSum (insertPoint P k hkn c hc1 hc2) f α
-        - (lowerStep (insertPoint P k hkn c hc1 hc2) f k * (α c - α (P.pts k))
-            + lowerStep (insertPoint P k hkn c hc1 hc2) f (k + 1)
-              * (α (P.pts (k + 1)) - α c))
-        + lowerStep P f k * (α (P.pts (k + 1)) - α (P.pts k)) := by
-  have key := sum_insert_diff P.n k hkn
-    (fun i => lowerStep P f i * (α (P.pts (i + 1)) - α (P.pts i)))
-    (fun i => lowerStep (insertPoint P k hkn c hc1 hc2) f i
-      * (α ((insertPoint P k hkn c hc1 hc2).pts (i + 1))
-          - α ((insertPoint P k hkn c hc1 hc2).pts i)))
-    (lowerStep (insertPoint P k hkn c hc1 hc2) f k * (α c - α (P.pts k)))
-    (lowerStep (insertPoint P k hkn c hc1 hc2) f (k + 1) * (α (P.pts (k + 1)) - α c))
-    ?hlt ?hkL ?hkR ?hgt
-  · simpa [lowerSum] using key
-  case hlt =>
-    intro i hi
-    simp only []
-    rw [insert_lowerStep_lt P k hkn c hc1 hc2 f hi,
-       insert_pts_lt P k hkn c hc1 hc2 (by omega : i + 1 ≤ k),
-       insert_pts_lt P k hkn c hc1 hc2 (le_of_lt hi)]
-  case hkL =>
-    simp only []
-    rw [insert_pts_lt P k hkn c hc1 hc2 (le_refl k),
-       insertPoint_pts_seam P k hkn c hc1 hc2]
-  case hkR =>
-    simp only []
-    rw [insertPoint_pts_seam P k hkn c hc1 hc2,
-       show (insertPoint P k hkn c hc1 hc2).pts (k + 1 + 1) = P.pts (k + 1) from by
-         have := insert_pts_ge P k hkn c hc1 hc2 0
-         simpa using this]
-  case hgt =>
-    intro j
-    simp only []
-    rw [insert_lowerStep_gt P k hkn c hc1 hc2 f j,
-       insert_pts_ge P k hkn c hc1 hc2 j,
-       show (insertPoint P k hkn c hc1 hc2).pts (k + 1 + (j + 1) + 1)
-           = P.pts (k + (j + 1) + 1) from by
-         have := insert_pts_ge P k hkn c hc1 hc2 (j + 1)
-         rw [show k + 1 + (j + 1 + 1) = k + 1 + (j + 1) + 1 from by omega,
-            show k + (j + 1 + 1) = k + (j + 1) + 1 from by omega] at this
-         exact this]
-
-/-! ### Sub-cell membership: the seam sub-cell steps lie in `[m_k, M_k]`. -/
-
-/-- The left seam sub-cell of `P'` is contained in cell `k` of `P`. -/
-lemma insert_seamL_subset :
-    Partition.subinterval (insertPoint P k hkn c hc1 hc2) k ⊆ Partition.subinterval P k := by
-  rw [insert_subinterval_seamL P k hkn c hc1 hc2]
-  intro x hx
-  exact ⟨hx.1, le_trans hx.2 (le_of_lt hc2)⟩
-
-lemma insert_seamR_subset :
-    Partition.subinterval (insertPoint P k hkn c hc1 hc2) (k + 1) ⊆ Partition.subinterval P k := by
-  rw [insert_subinterval_seamR P k hkn c hc1 hc2]
-  intro x hx
-  exact ⟨le_trans (le_of_lt hc1) hx.1, hx.2⟩
-
-include hkn in
-lemma cell_bddAbove (f : ℝ → ℝ) (hAbove : BddAbove (f '' Icc a b)) :
-    BddAbove (f '' subinterval P k) :=
-  BddAbove.mono (Set.image_mono (subinterval_subset_Icc_core P hkn)) hAbove
-
-include hkn in
-lemma cell_bddBelow (f : ℝ → ℝ) (hBelow : BddBelow (f '' Icc a b)) :
-    BddBelow (f '' Partition.subinterval P k) :=
-  BddBelow.mono (Set.image_mono (subinterval_subset_Icc_core P hkn)) hBelow
-
-/-- Seam sub-cell upper steps are `≤ M_k`. -/
-lemma seam_upperStep_le_L (f : ℝ → ℝ) (hAbove : BddAbove (f '' Icc a b)) :
-    upperStep (insertPoint P k hkn c hc1 hc2) f k ≤ upperStep P f k := by
-  unfold upperStep
-  refine csSup_le_csSup (cell_bddAbove P k hkn f hAbove) ?_
-    (Set.image_mono (insert_seamL_subset P k hkn c hc1 hc2))
-  refine ⟨f (P.pts k), P.pts k, ?_, rfl⟩
-  rw [insert_subinterval_seamL P k hkn c hc1 hc2]; exact ⟨le_rfl, le_of_lt hc1⟩
-
-lemma seam_upperStep_le_R (f : ℝ → ℝ) (hAbove : BddAbove (f '' Icc a b)) :
-    upperStep (insertPoint P k hkn c hc1 hc2) f (k + 1) ≤ upperStep P f k := by
-  unfold upperStep
-  refine csSup_le_csSup (cell_bddAbove P k hkn f hAbove) ?_
-    (Set.image_mono (insert_seamR_subset P k hkn c hc1 hc2))
-  refine ⟨f c, c, ?_, rfl⟩
-  rw [insert_subinterval_seamR P k hkn c hc1 hc2]; exact ⟨le_rfl, le_of_lt hc2⟩
-
-/-- Boundedness of a seam sub-cell image (both sides), used for its sSup/sInf. -/
-lemma seamL_bddAbove (f : ℝ → ℝ) (hAbove : BddAbove (f '' Icc a b)) :
-    BddAbove (f '' Partition.subinterval (insertPoint P k hkn c hc1 hc2) k) :=
-  BddAbove.mono (Set.image_mono (fun z hz =>
-    subinterval_subset_Icc_core P hkn (insert_seamL_subset P k hkn c hc1 hc2 hz))) hAbove
-
-lemma seamR_bddAbove (f : ℝ → ℝ) (hAbove : BddAbove (f '' Icc a b)) :
-    BddAbove (f '' Partition.subinterval (insertPoint P k hkn c hc1 hc2) (k + 1)) :=
-  BddAbove.mono (Set.image_mono (fun z hz =>
-    subinterval_subset_Icc_core P hkn (insert_seamR_subset P k hkn c hc1 hc2 hz))) hAbove
-
-/-- Seam sub-cell upper steps are `≥ m_k` (left). -/
-lemma seam_lowerStep_le_upperStep_L (f : ℝ → ℝ)
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b)) :
-    lowerStep P f k ≤ upperStep (insertPoint P k hkn c hc1 hc2) f k := by
-  -- pick x = P.pts k in the left seam sub-cell
-  have hxmem : P.pts k ∈ subinterval (insertPoint P k hkn c hc1 hc2) k := by
-    rw [insert_subinterval_seamL P k hkn c hc1 hc2]; exact ⟨le_rfl, le_of_lt hc1⟩
-  have hxcell : P.pts k ∈ subinterval P k :=
-    insert_seamL_subset P k hkn c hc1 hc2 hxmem
-  have h1 : lowerStep P f k ≤ f (P.pts k) :=
-    csInf_le (cell_bddBelow P k hkn f hBelow) ⟨P.pts k, hxcell, rfl⟩
-  have h2 : f (P.pts k) ≤ upperStep (insertPoint P k hkn c hc1 hc2) f k :=
-    le_csSup (seamL_bddAbove P k hkn c hc1 hc2 f hAbove) ⟨P.pts k, hxmem, rfl⟩
-  exact le_trans h1 h2
-
-/-- Seam sub-cell upper steps are `≥ m_k` (right). -/
-lemma seam_lowerStep_le_upperStep_R (f : ℝ → ℝ)
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b)) :
-    lowerStep P f k ≤ upperStep (insertPoint P k hkn c hc1 hc2) f (k + 1) := by
-  have hxmem : c ∈ subinterval (insertPoint P k hkn c hc1 hc2) (k + 1) := by
-    rw [insert_subinterval_seamR P k hkn c hc1 hc2]; exact ⟨le_rfl, le_of_lt hc2⟩
-  have hxcell : c ∈ subinterval P k :=
-    insert_seamR_subset P k hkn c hc1 hc2 hxmem
-  have h1 : lowerStep P f k ≤ f c :=
-    csInf_le (cell_bddBelow P k hkn f hBelow) ⟨c, hxcell, rfl⟩
-  have h2 : f c ≤ upperStep (insertPoint P k hkn c hc1 hc2) f (k + 1) :=
-    le_csSup (seamR_bddAbove P k hkn c hc1 hc2 f hAbove) ⟨c, hxmem, rfl⟩
-  exact le_trans h1 h2
-
-/-- Boundedness below of seam sub-cell images. -/
-lemma seamL_bddBelow (f : ℝ → ℝ) (hBelow : BddBelow (f '' Icc a b)) :
-    BddBelow (f '' subinterval (insertPoint P k hkn c hc1 hc2) k) :=
-  BddBelow.mono (Set.image_mono (fun z hz =>
-    subinterval_subset_Icc_core P hkn (insert_seamL_subset P k hkn c hc1 hc2 hz))) hBelow
-
-lemma seamR_bddBelow (f : ℝ → ℝ) (hBelow : BddBelow (f '' Icc a b)) :
-    BddBelow (f '' subinterval (insertPoint P k hkn c hc1 hc2) (k + 1)) :=
-  BddBelow.mono (Set.image_mono (fun z hz =>
-    subinterval_subset_Icc_core P hkn (insert_seamR_subset P k hkn c hc1 hc2 hz))) hBelow
-
-/-- Seam sub-cell lower steps are `≥ m_k`. -/
-lemma seam_lowerStep_ge_L (f : ℝ → ℝ) (hBelow : BddBelow (f '' Icc a b)) :
-    lowerStep P f k ≤ lowerStep (insertPoint P k hkn c hc1 hc2) f k := by
-  have hne : (f '' subinterval (insertPoint P k hkn c hc1 hc2) k).Nonempty := by
-    rw [insert_subinterval_seamL P k hkn c hc1 hc2]
-    exact ⟨f (P.pts k), P.pts k, ⟨le_rfl, le_of_lt hc1⟩, rfl⟩
-  unfold lowerStep
-  refine le_csInf hne ?_
-  rintro y ⟨x, hx, rfl⟩
-  have hxcell : x ∈ subinterval P k := insert_seamL_subset P k hkn c hc1 hc2 hx
-  exact csInf_le (cell_bddBelow P k hkn f hBelow) ⟨x, hxcell, rfl⟩
-
-lemma seam_lowerStep_ge_R (f : ℝ → ℝ) (hBelow : BddBelow (f '' Icc a b)) :
-    lowerStep P f k ≤ lowerStep (insertPoint P k hkn c hc1 hc2) f (k + 1) := by
-  have hne : (f '' subinterval (insertPoint P k hkn c hc1 hc2) (k + 1)).Nonempty := by
-    rw [insert_subinterval_seamR P k hkn c hc1 hc2]
-    exact ⟨f c, c, ⟨le_rfl, le_of_lt hc2⟩, rfl⟩
-  unfold lowerStep
-  refine le_csInf hne ?_
-  rintro y ⟨x, hx, rfl⟩
-  have hxcell : x ∈ subinterval P k := insert_seamR_subset P k hkn c hc1 hc2 hx
-  exact csInf_le (cell_bddBelow P k hkn f hBelow) ⟨x, hxcell, rfl⟩
-
-/-- Seam sub-cell lower steps are `≤ M_k`. -/
-lemma seam_lowerStep_le_upper_L (f : ℝ → ℝ)
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b)) :
-    lowerStep (insertPoint P k hkn c hc1 hc2) f k ≤ upperStep P f k := by
-  have hxmem : P.pts k ∈ subinterval (insertPoint P k hkn c hc1 hc2) k := by
-    rw [insert_subinterval_seamL P k hkn c hc1 hc2]; exact ⟨le_rfl, le_of_lt hc1⟩
-  have hxcell : P.pts k ∈ subinterval P k :=
-    insert_seamL_subset P k hkn c hc1 hc2 hxmem
-  have h1 : lowerStep (insertPoint P k hkn c hc1 hc2) f k ≤ f (P.pts k) :=
-    csInf_le (seamL_bddBelow P k hkn c hc1 hc2 f hBelow) ⟨P.pts k, hxmem, rfl⟩
-  have h2 : f (P.pts k) ≤ upperStep P f k :=
-    le_csSup (cell_bddAbove P k hkn f hAbove) ⟨P.pts k, hxcell, rfl⟩
-  exact le_trans h1 h2
-
-lemma seam_lowerStep_le_upper_R (f : ℝ → ℝ)
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b)) :
-    lowerStep (insertPoint P k hkn c hc1 hc2) f (k + 1) ≤ upperStep P f k := by
-  have hxmem : c ∈ subinterval (insertPoint P k hkn c hc1 hc2) (k + 1) := by
-    rw [insert_subinterval_seamR P k hkn c hc1 hc2]; exact ⟨le_rfl, le_of_lt hc2⟩
-  have hxcell : c ∈ subinterval P k :=
-    insert_seamR_subset P k hkn c hc1 hc2 hxmem
-  have h1 : lowerStep (insertPoint P k hkn c hc1 hc2) f (k + 1) ≤ f c :=
-    csInf_le (seamR_bddBelow P k hkn c hc1 hc2 f hBelow) ⟨c, hxmem, rfl⟩
-  have h2 : f c ≤ upperStep P f k :=
-    le_csSup (cell_bddAbove P k hkn f hAbove) ⟨c, hxcell, rfl⟩
-  exact le_trans h1 h2
-
-/-! ### The cell-oscillation change bound (α-continuous branch core). -/
-
-include hkn in
-lemma cptk_mem : P.pts k ∈ Icc a b := partition_pts_mem_Icc_core P (Nat.le_of_lt hkn)
-
-include hkn in
-lemma cptk1_mem : P.pts (k + 1) ∈ Icc a b :=
-  partition_pts_mem_Icc_core P (Nat.succ_le_of_lt hkn)
-
-include hkn hc1 hc2 in
-lemma c_mem : c ∈ Icc a b := by
-  have h1 := cptk_mem P k hkn
-  have h2 := cptk1_mem P k hkn
-  exact ⟨le_trans h1.1 (le_of_lt hc1), le_trans (le_of_lt hc2) h2.2⟩
-
-/-- The upper-sum change under insertion is dominated by the cell oscillation. -/
-lemma abs_upperSum_insert_le (f α : ℝ → ℝ)
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b))
-    (hmono : MonotoneOn α (Icc a b)) :
-    |upperSum P f α - upperSum (insertPoint P k hkn c hc1 hc2) f α|
-      ≤ (upperStep P f k - lowerStep P f k)
-          * (α (P.pts (k + 1)) - α (P.pts k)) := by
-  set P' := insertPoint P k hkn c hc1 hc2 with hP'
-  -- increments
-  have hkmem := cptk_mem P k hkn
-  have hk1mem := cptk1_mem P k hkn
-  have hcmem := c_mem P k hkn c hc1 hc2
-  have hdL : 0 ≤ α c - α (P.pts k) :=
-    sub_nonneg.mpr (hmono hkmem hcmem (le_of_lt hc1))
-  have hdR : 0 ≤ α (P.pts (k + 1)) - α c :=
-    sub_nonneg.mpr (hmono hcmem hk1mem (le_of_lt hc2))
-  -- sub-cell step bounds
-  have hML_le : upperStep P' f k ≤ upperStep P f k := seam_upperStep_le_L P k hkn c hc1 hc2 f hAbove
-  have hMR_le : upperStep P' f (k + 1) ≤ upperStep P f k := seam_upperStep_le_R P k hkn c hc1 hc2 f hAbove
-  have hm_le_L : lowerStep P f k ≤ upperStep P' f k :=
-    seam_lowerStep_le_upperStep_L P k hkn c hc1 hc2 f hAbove hBelow
-  have hm_le_R : lowerStep P f k ≤ upperStep P' f (k + 1) :=
-    seam_lowerStep_le_upperStep_R P k hkn c hc1 hc2 f hAbove hBelow
-  -- the difference identity
-  have hid := upperSum_insert_eq P k hkn c hc1 hc2 f α
-  -- abbreviations
-  set M := upperStep P f k
-  set m := lowerStep P f k
-  set ML := upperStep P' f k
-  set MR := upperStep P' f (k + 1)
-  set dL := α c - α (P.pts k)
-  set dR := α (P.pts (k + 1)) - α c
-  -- Δα_k = dL + dR
-  have hsum : α (P.pts (k + 1)) - α (P.pts k) = dL + dR := by
-    simp only [dL, dR]; ring
-  rw [hsum]
-  -- from identity: upperSum P - upperSum P' = M*(dL+dR) - (ML*dL + MR*dR)
-  have hdiff : upperSum P f α - upperSum P' f α
-      = M * (dL + dR) - (ML * dL + MR * dR) := by
-    rw [hid]; ring
-  rw [hdiff]
-  rw [abs_le]
-  constructor
-  · nlinarith [mul_le_mul_of_nonneg_right hm_le_L hdL,
-      mul_le_mul_of_nonneg_right hm_le_R hdR]
-  · nlinarith [mul_le_mul_of_nonneg_right hML_le hdL,
-      mul_le_mul_of_nonneg_right hMR_le hdR]
-
-/-- The lower-sum change under insertion is dominated by the cell oscillation. -/
-lemma abs_lowerSum_insert_le (f α : ℝ → ℝ)
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b))
-    (hmono : MonotoneOn α (Icc a b)) :
-    |lowerSum P f α - lowerSum (insertPoint P k hkn c hc1 hc2) f α|
-      ≤ (upperStep P f k - lowerStep P f k)
-          * (α (P.pts (k + 1)) - α (P.pts k)) := by
-  set P' := insertPoint P k hkn c hc1 hc2 with hP'
-  have hkmem := cptk_mem P k hkn
-  have hk1mem := cptk1_mem P k hkn
-  have hcmem := c_mem P k hkn c hc1 hc2
-  have hdL : 0 ≤ α c - α (P.pts k) :=
-    sub_nonneg.mpr (hmono hkmem hcmem (le_of_lt hc1))
-  have hdR : 0 ≤ α (P.pts (k + 1)) - α c :=
-    sub_nonneg.mpr (hmono hcmem hk1mem (le_of_lt hc2))
-  have hmL_ge : lowerStep P f k ≤ lowerStep P' f k := seam_lowerStep_ge_L P k hkn c hc1 hc2 f hBelow
-  have hmR_ge : lowerStep P f k ≤ lowerStep P' f (k + 1) := seam_lowerStep_ge_R P k hkn c hc1 hc2 f hBelow
-  have hmL_le : lowerStep P' f k ≤ upperStep P f k :=
-    seam_lowerStep_le_upper_L P k hkn c hc1 hc2 f hAbove hBelow
-  have hmR_le : lowerStep P' f (k + 1) ≤ upperStep P f k :=
-    seam_lowerStep_le_upper_R P k hkn c hc1 hc2 f hAbove hBelow
-  have hid := lowerSum_insert_eq P k hkn c hc1 hc2 f α
-  set M := upperStep P f k
-  set m := lowerStep P f k
-  set mL := lowerStep P' f k
-  set mR := lowerStep P' f (k + 1)
-  set dL := α c - α (P.pts k)
-  set dR := α (P.pts (k + 1)) - α c
-  have hsum : α (P.pts (k + 1)) - α (P.pts k) = dL + dR := by
-    simp only [dL, dR]; ring
-  rw [hsum]
-  have hdiff : lowerSum P f α - lowerSum P' f α
-      = m * (dL + dR) - (mL * dL + mR * dR) := by
-    rw [hid]; ring
-  rw [hdiff, abs_le]
-  constructor
-  · nlinarith [mul_le_mul_of_nonneg_right hmL_le hdL,
-      mul_le_mul_of_nonneg_right hmR_le hdR]
-  · nlinarith [mul_le_mul_of_nonneg_right hmL_ge hdL,
-      mul_le_mul_of_nonneg_right hmR_ge hdR]
-
-/-! ### Mesh monotonicity under insertion. -/
-
-include hkn hc1 hc2 in
-lemma insert_gap_le_mesh {i : ℕ} (hi : i < (insertPoint P k hkn c hc1 hc2).n) :
-    (insertPoint P k hkn c hc1 hc2).pts (i + 1) - (insertPoint P k hkn c hc1 hc2).pts i
-      ≤ P.mesh := by
-  have hgapk : P.pts (k + 1) - P.pts k ≤ P.mesh := partition_length_le_mesh P hkn
-  rcases lt_trichotomy i k with hlt | heq | hgt
-  · -- i < k
-    rw [insert_pts_lt P k hkn c hc1 hc2 (by omega : i + 1 ≤ k),
-       insert_pts_lt P k hkn c hc1 hc2 (le_of_lt hlt)]
-    exact partition_length_le_mesh P (lt_trans hlt hkn)
-  · -- i = k : gap = c - P.pts k
-    subst heq
-    rw [insert_pts_lt P i hkn c hc1 hc2 (le_refl i), insertPoint_pts_seam P i hkn c hc1 hc2]
-    have : P.pts i ≤ P.pts (i + 1) := le_of_lt (P.strict_mono i hkn)
-    linarith [le_of_lt hc2]
-  · -- i > k
-    rcases Nat.lt_or_ge i (k + 1) with h | h
-    · omega
-    · rcases Nat.eq_or_lt_of_le h with heq1 | hgt1
-      · -- i = k + 1 : gap = P.pts (k+1) - c
-        rw [← heq1, insertPoint_pts_seam P k hkn c hc1 hc2,
-           show (insertPoint P k hkn c hc1 hc2).pts (k + 1 + 1) = P.pts (k + 1) from by
-             have := insert_pts_ge P k hkn c hc1 hc2 0
-             simpa using this]
-        have : P.pts k ≤ P.pts (k + 1) := le_of_lt (P.strict_mono k hkn)
-        linarith [le_of_lt hc1]
-      · -- i ≥ k + 2 : shifted P gap
-        obtain ⟨j, rfl⟩ : ∃ j, i = k + 1 + (j + 1) := ⟨i - k - 2, by omega⟩
-        rw [insert_pts_ge P k hkn c hc1 hc2 j,
-           show (insertPoint P k hkn c hc1 hc2).pts (k + 1 + (j + 1) + 1)
-               = P.pts (k + (j + 1) + 1) from by
-             have := insert_pts_ge P k hkn c hc1 hc2 (j + 1)
-             rw [show k + 1 + (j + 1 + 1) = k + 1 + (j + 1) + 1 from by omega,
-                show k + (j + 1 + 1) = k + (j + 1) + 1 from by omega] at this
-             exact this]
-        have hlt2 : k + (j + 1) < P.n := by
-          have : (insertPoint P k hkn c hc1 hc2).n = P.n + 1 := rfl
-          omega
-        exact partition_length_le_mesh P hlt2
-
-include hkn hc1 hc2 in
-lemma mesh_insert_le :
-    (insertPoint P k hkn c hc1 hc2).mesh ≤ P.mesh := by
-  unfold Partition.mesh
-  apply Finset.sup'_le
-  intro i hi
-  exact insert_gap_le_mesh P k hkn c hc1 hc2 (Finset.mem_range.mp hi)
-
-/-! ### Tag transport is valid on the inserted partition. -/
-
-include hkn hc1 hc2 in
-lemma insTags_valid (tags : ℕ → ℝ) (htags : tagsInPartition P tags) :
-    tagsInPartition (insertPoint P k hkn c hc1 hc2) (insTags tags k c) := by
-  intro i hi
-  have hin : (insertPoint P k hkn c hc1 hc2).n = P.n + 1 := rfl
-  rw [hin] at hi
-  rcases lt_trichotomy i k with hlt | heq | hgt
-  · -- i < k
-    rw [insTags_lt tags k c hlt, insert_subinterval_lt P k hkn c hc1 hc2 hlt]
-    exact htags i (lt_trans hlt hkn)
-  · -- i = k : tag d in [pts k, c]
-    subst heq
-    rw [insTags_seamL tags i c, insert_subinterval_seamL P i hkn c hc1 hc2]
-    exact ⟨le_of_lt hc1, le_rfl⟩
-  · rcases Nat.lt_or_ge i (k + 1) with h | h
-    · omega
-    · rcases Nat.eq_or_lt_of_le h with heq1 | hgt1
-      · -- i = k + 1 : tag d in [c, pts (k+1)]
-        rw [← heq1, insTags_seamR tags k c, insert_subinterval_seamR P k hkn c hc1 hc2]
-        exact ⟨le_rfl, le_of_lt hc2⟩
-      · -- i ≥ k + 2 : shifted tag in shifted cell
-        obtain ⟨j, rfl⟩ : ∃ j, i = k + 1 + (j + 1) := ⟨i - k - 2, by omega⟩
-        rw [insTags_gt tags k c (by omega : k + 1 < k + 1 + (j + 1)),
-           insert_subinterval_gt P k hkn c hc1 hc2 j,
-           show k + 1 + (j + 1) - 1 = k + (j + 1) from by omega]
-        have hlt2 : k + (j + 1) < P.n := by omega
-        exact htags (k + (j + 1)) hlt2
-
-include hkn hc1 hc2 in
-lemma taggedSum_insert_eq (tags : ℕ → ℝ) (f α : ℝ → ℝ) :
-    taggedSum P tags f α =
-      taggedSum (insertPoint P k hkn c hc1 hc2) (insTags tags k c) f α
-        - (f c * (α c - α (P.pts k)) + f c * (α (P.pts (k + 1)) - α c))
-        + f (tags k) * (α (P.pts (k + 1)) - α (P.pts k)) := by
-  have key := sum_insert_diff P.n k hkn
-    (fun i => f (tags i) * (α (P.pts (i + 1)) - α (P.pts i)))
-    (fun i => f (insTags tags k c i)
-      * (α ((insertPoint P k hkn c hc1 hc2).pts (i + 1))
-          - α ((insertPoint P k hkn c hc1 hc2).pts i)))
-    (f c * (α c - α (P.pts k)))
-    (f c * (α (P.pts (k + 1)) - α c))
-    ?hlt ?hkL ?hkR ?hgt
-  · simpa [taggedSum] using key
-  case hlt =>
-    intro i hi
-    simp only []
-    rw [insTags_lt tags k c hi,
-       insert_pts_lt P k hkn c hc1 hc2 (by omega : i + 1 ≤ k),
-       insert_pts_lt P k hkn c hc1 hc2 (le_of_lt hi)]
-  case hkL =>
-    simp only []
-    rw [insTags_seamL tags k c, insert_pts_lt P k hkn c hc1 hc2 (le_refl k),
-       insertPoint_pts_seam P k hkn c hc1 hc2]
-  case hkR =>
-    simp only []
-    rw [insTags_seamR tags k c, insertPoint_pts_seam P k hkn c hc1 hc2,
-       show (insertPoint P k hkn c hc1 hc2).pts (k + 1 + 1) = P.pts (k + 1) from by
-         have := insert_pts_ge P k hkn c hc1 hc2 0
-         simpa using this]
-  case hgt =>
-    intro j
-    simp only []
-    rw [insTags_gt tags k c (by omega : k + 1 < k + 1 + (j + 1)),
-       show k + 1 + (j + 1) - 1 = k + (j + 1) from by omega,
-       insert_pts_ge P k hkn c hc1 hc2 j,
-       show (insertPoint P k hkn c hc1 hc2).pts (k + 1 + (j + 1) + 1)
-           = P.pts (k + (j + 1) + 1) from by
-         have := insert_pts_ge P k hkn c hc1 hc2 (j + 1)
-         rw [show k + 1 + (j + 1 + 1) = k + 1 + (j + 1) + 1 from by omega,
-            show k + (j + 1 + 1) = k + (j + 1) + 1 from by omega] at this
-         exact this]
-
-end InsertCells
-
-/-! ## Gluing the source hypotheses on `[a,d]` and `[d,b]` into `[a,b]`. -/
-
-lemma image_Icc_union {f : ℝ → ℝ} {a d b : ℝ} (had : a ≤ d) (hdb : d ≤ b) :
-    f '' Icc a b = f '' Icc a d ∪ f '' Icc d b := by
-  rw [← Set.image_union, Set.Icc_union_Icc_eq_Icc had hdb]
-
-lemma sourceHypotheses_glue {a d b : ℝ} {f α : ℝ → ℝ}
-    (h₁ : SourceHypotheses a d f α) (h₂ : SourceHypotheses d b f α) :
-    SourceHypotheses a b f α := by
-  rcases h₁ with ⟨had, hA₁, hB₁, hM₁⟩
-  rcases h₂ with ⟨hdb, hA₂, hB₂, hM₂⟩
-  have hadb : a ≤ b := le_of_lt (lt_trans had hdb)
-  refine ⟨lt_trans had hdb, ?_, ?_, ?_⟩
-  · rw [image_Icc_union (le_of_lt had) (le_of_lt hdb)]; exact hA₁.union hA₂
-  · rw [image_Icc_union (le_of_lt had) (le_of_lt hdb)]; exact hB₁.union hB₂
-  · -- glue monotonicity
-    intro x hx y hy hxy
-    have hd_ad : d ∈ Icc a d := ⟨le_of_lt had, le_rfl⟩
-    have hd_db : d ∈ Icc d b := ⟨le_rfl, le_of_lt hdb⟩
-    rcases le_or_gt x d with hxd | hdx
-    · rcases le_or_gt y d with hyd | hdy
-      · -- both in [a,d]
-        exact hM₁ ⟨hx.1, hxd⟩ ⟨hy.1, hyd⟩ hxy
-      · -- x ≤ d ≤ y
-        have hx_ad : x ∈ Icc a d := ⟨hx.1, hxd⟩
-        have hy_db : y ∈ Icc d b := ⟨le_of_lt hdy, hy.2⟩
-        exact le_trans (hM₁ hx_ad hd_ad hxd) (hM₂ hd_db hy_db (le_of_lt hdy))
-    · -- d < x ≤ y, both in [d,b]
-      have hx_db : x ∈ Icc d b := ⟨le_of_lt hdx, hx.2⟩
-      have hy_db : y ∈ Icc d b := ⟨le_of_lt (lt_of_lt_of_le hdx hxy), hy.2⟩
-      exact hM₂ hx_db hy_db hxy
-
-/-! ## Oscillation constant and cell-oscillation bound `M_k - m_k ≤ Ω`. -/
-
-/-- The global oscillation of `f` on `[a,b]`. -/
-def Omega (f : ℝ → ℝ) (a b : ℝ) : ℝ := sSup (f '' Icc a b) - sInf (f '' Icc a b)
-
-lemma omega_nonneg {f : ℝ → ℝ} {a b : ℝ} (hab : a < b)
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b)) :
-    0 ≤ Omega f a b := by
-  have hne : (f '' Icc a b).Nonempty := ⟨f a, a, ⟨le_rfl, le_of_lt hab⟩, rfl⟩
-  obtain ⟨y, hy⟩ := hne
-  have h1 : sInf (f '' Icc a b) ≤ y := csInf_le hBelow hy
-  have h2 : y ≤ sSup (f '' Icc a b) := le_csSup hAbove hy
-  unfold Omega; linarith
-
-/-- Cell oscillation is bounded by the global oscillation. -/
-lemma cell_osc_le_omega {a b : ℝ} (P : Partition a b) {k : ℕ} (hkn : k < P.n)
-    {f : ℝ → ℝ}
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b)) :
-    upperStep P f k - lowerStep P f k ≤ Omega f a b := by
-  have hcellAbove : BddAbove (f '' subinterval P k) :=
-    BddAbove.mono (Set.image_mono (subinterval_subset_Icc_core P hkn)) hAbove
-  have hcellBelow : BddBelow (f '' subinterval P k) :=
-    BddBelow.mono (Set.image_mono (subinterval_subset_Icc_core P hkn)) hBelow
-  have hsub : f '' subinterval P k ⊆ f '' Icc a b :=
-    Set.image_mono (subinterval_subset_Icc_core P hkn)
-  have hne : (f '' subinterval P k).Nonempty :=
-    ⟨f (P.pts k), P.pts k, ⟨le_rfl, le_of_lt (P.strict_mono k hkn)⟩, rfl⟩
-  have hUp : upperStep P f k ≤ sSup (f '' Icc a b) := by
-    unfold upperStep
-    exact csSup_le_csSup hAbove hne hsub
-  have hLow : sInf (f '' Icc a b) ≤ lowerStep P f k := by
-    unfold lowerStep
-    exact csInf_le_csInf hBelow hne hsub
-  unfold Omega; linarith
-
-/-- In a crossing cell, every point is within the mesh of the crossing point `d`. -/
-lemma crossing_point_dist_le {a b d : ℝ} (P : Partition a b) {k : ℕ} (hkn : k < P.n)
-    (hc1 : P.pts k < d) (hc2 : d < P.pts (k + 1)) {x : ℝ} (hx : x ∈ subinterval P k) :
-    |x - d| ≤ P.mesh := by
-  have hlen : P.pts (k + 1) - P.pts k ≤ P.mesh := partition_length_le_mesh P hkn
-  have : |x - d| ≤ P.pts (k + 1) - P.pts k := by
-    rw [abs_le]; constructor
-    · nlinarith [hx.1, le_of_lt hc2]
-    · nlinarith [hx.2, le_of_lt hc1]
-  linarith
-
-/-- Any cell increment is bounded by the total α-increment `α b - α a`. -/
-lemma alpha_gap_le_total {a b : ℝ} (P : Partition a b) {k : ℕ} (hkn : k < P.n)
-    {α : ℝ → ℝ} (hmono : MonotoneOn α (Icc a b)) :
-    α (P.pts (k + 1)) - α (P.pts k) ≤ α b - α a := by
-  have hkmem : P.pts k ∈ Icc a b := partition_pts_mem_Icc_core P (Nat.le_of_lt hkn)
-  have hk1mem : P.pts (k + 1) ∈ Icc a b := partition_pts_mem_Icc_core P (Nat.succ_le_of_lt hkn)
-  have hamem : a ∈ Icc a b := ⟨le_rfl, le_of_lt (lt_of_le_of_lt hkmem.1 (lt_of_lt_of_le
-    (P.strict_mono k hkn) hk1mem.2))⟩
-  have hbmem : b ∈ Icc a b := ⟨hamem.2, le_rfl⟩
-  have h1 : α a ≤ α (P.pts k) := hmono hamem hkmem hkmem.1
-  have h2 : α (P.pts (k + 1)) ≤ α b := hmono hk1mem hbmem hk1mem.2
-  linarith
-
-/-- Cell oscillation under f-closeness to a value `v`: if every point of the cell
-maps within `η` of `v`, the cell oscillation is at most `2η`. -/
-lemma cell_osc_le_of_close {a b : ℝ} (P : Partition a b) {k : ℕ} (hkn : k < P.n)
-    {f : ℝ → ℝ} {v η : ℝ}
-    (hclose : ∀ x ∈ subinterval P k, |f x - v| ≤ η) :
-    upperStep P f k - lowerStep P f k ≤ 2 * η := by
-  have hne : (f '' subinterval P k).Nonempty :=
-    ⟨f (P.pts k), P.pts k, ⟨le_rfl, le_of_lt (P.strict_mono k hkn)⟩, rfl⟩
-  have hAbove : BddAbove (f '' subinterval P k) := by
-    refine ⟨v + η, ?_⟩
-    rintro y ⟨x, hx, rfl⟩
-    have := hclose x hx
-    rw [abs_le] at this; linarith [this.2]
-  have hBelow : BddBelow (f '' subinterval P k) := by
-    refine ⟨v - η, ?_⟩
-    rintro y ⟨x, hx, rfl⟩
-    have := hclose x hx
-    rw [abs_le] at this; linarith [this.1]
-  have hUp : upperStep P f k ≤ v + η := by
-    unfold upperStep
-    refine csSup_le hne ?_
-    rintro y ⟨x, hx, rfl⟩
-    have := hclose x hx; rw [abs_le] at this; linarith [this.2]
-  have hLow : v - η ≤ lowerStep P f k := by
-    unfold lowerStep
-    refine le_csInf hne ?_
-    rintro y ⟨x, hx, rfl⟩
-    have := hclose x hx; rw [abs_le] at this; linarith [this.1]
-  linarith
-
-/-- Seam comparison: `|f x - f y| ≤ Ω` for `x, y ∈ Icc a b`. -/
-lemma abs_f_sub_le_omega {f : ℝ → ℝ} {a b : ℝ}
-    (hAbove : BddAbove (f '' Icc a b)) (hBelow : BddBelow (f '' Icc a b))
-    {x y : ℝ} (hx : x ∈ Icc a b) (hy : y ∈ Icc a b) :
-    |f x - f y| ≤ Omega f a b := by
-  have hfx_le : f x ≤ sSup (f '' Icc a b) := le_csSup hAbove ⟨x, hx, rfl⟩
-  have hfy_le : f y ≤ sSup (f '' Icc a b) := le_csSup hAbove ⟨y, hy, rfl⟩
-  have hle_fx : sInf (f '' Icc a b) ≤ f x := csInf_le hBelow ⟨x, hx, rfl⟩
-  have hle_fy : sInf (f '' Icc a b) ≤ f y := csInf_le hBelow ⟨y, hy, rfl⟩
-  rw [abs_le]; unfold Omega; constructor <;> linarith
-
-/-! ## Locating a point `d` in a partition of `[a,b]`. -/
-
-open Classical in
-/-- For `a < d < b` and any partition `P`, either `d` is an interior grid point,
-or `d` falls strictly inside a unique cell. -/
-lemma locate_point {a b : ℝ} (P : Partition a b) {d : ℝ}
-    (had : a < d) (hdb : d < b) :
-    (∃ k, 0 < k ∧ k < P.n ∧ P.pts k = d) ∨
-      (∃ k, k < P.n ∧ P.pts k < d ∧ d < P.pts (k + 1)) := by
-  set Q : ℕ → Prop := fun i => P.pts i ≤ d with hQ
-  set k := Nat.findGreatest Q P.n with hk
-  have hstart : Q 0 := by simp [hQ, P.pts_start, le_of_lt had]
-  have hk_le : k ≤ P.n := Nat.findGreatest_le P.n
-  have hk_spec : Q k := Nat.findGreatest_spec (Nat.zero_le P.n) hstart
-  have hkltn : k < P.n := by
-    rcases lt_or_eq_of_le hk_le with h | h
-    · exact h
-    · exfalso
-      rw [h] at hk_spec
-      simp only [hQ] at hk_spec
-      rw [P.pts_end] at hk_spec
-      linarith
-  have hgt : ¬ Q (k + 1) := by
-    apply Nat.findGreatest_is_greatest (by omega : k < k + 1) (by omega : k + 1 ≤ P.n)
-  have hd_lt : d < P.pts (k + 1) := by
-    simp only [hQ] at hgt; exact lt_of_not_ge hgt
-  have hpk_le : P.pts k ≤ d := by simpa [hQ] using hk_spec
-  rcases lt_or_eq_of_le hpk_le with hlt | heq
-  · -- strictly inside cell k
-    exact Or.inr ⟨k, hkltn, hlt, hd_lt⟩
-  · -- d is grid point P.pts k, and k > 0 since a < d
-    refine Or.inl ⟨k, ?_, hkltn, heq⟩
-    rcases Nat.eq_zero_or_pos k with hk0 | hkpos
-    · exfalso; rw [hk0, P.pts_start] at heq; linarith
-    · exact hkpos
-
-/-! ## The tagged common limit glues across `d` (α-continuous branch). -/
-
-theorem taggedCommonLimit_glue_alpha {a d b : ℝ} {f α : ℝ → ℝ} {L₁ L₂ : ℝ}
-    (h₁ : TaggedCommonLimit a d f α L₁) (h₂ : TaggedCommonLimit d b f α L₂)
-    (hαd : ContinuousAt α d) (had : a < d) (hdb : d < b) :
-    TaggedCommonLimit a b f α (L₁ + L₂) := by
-  obtain ⟨hs₁, hlim₁⟩ := h₁
-  obtain ⟨hs₂, hlim₂⟩ := h₂
-  have hs : SourceHypotheses a b f α := sourceHypotheses_glue ⟨hs₁.1, hs₁.2.1, hs₁.2.2.1, hs₁.2.2.2⟩
-    ⟨hs₂.1, hs₂.2.1, hs₂.2.2.1, hs₂.2.2.2⟩
-  obtain ⟨hab, hAbove, hBelow, hmono⟩ := hs
-  refine ⟨⟨hab, hAbove, hBelow, hmono⟩, ?_⟩
-  intro eps heps
-  -- oscillation
-  set Ω := Omega f a b with hΩ
-  have hΩnn : 0 ≤ Ω := omega_nonneg hab hAbove hBelow
-  -- tolerances
-  have hquarter : 0 < eps / 4 := by positivity
-  obtain ⟨δ₁, hδ₁, H₁⟩ := hlim₁ (eps / 4) hquarter
-  obtain ⟨δ₂, hδ₂, H₂⟩ := hlim₂ (eps / 4) hquarter
-  -- continuity tolerance
-  set epsp : ℝ := eps / (4 * (Ω + 1)) with hepsp
-  have hΩ1pos : 0 < Ω + 1 := by linarith
-  have hepsp_pos : 0 < epsp := by rw [hepsp]; positivity
-  obtain ⟨δ₃, hδ₃, Hδ₃⟩ := Metric.continuousAt_iff.mp hαd epsp hepsp_pos
-  refine ⟨min (min δ₁ δ₂) δ₃, by positivity, ?_⟩
-  intro P tags htags hmesh
-  have hmesh₁ : P.mesh < δ₁ :=
-    lt_of_lt_of_le hmesh (le_trans (min_le_left _ _) (min_le_left _ _))
-  have hmesh₂ : P.mesh < δ₂ :=
-    lt_of_lt_of_le hmesh (le_trans (min_le_left _ _) (min_le_right _ _))
-  have hmesh₃ : P.mesh < δ₃ := lt_of_lt_of_le hmesh (min_le_right _ _)
-  rcases locate_point P had hdb with ⟨k, hk0, hkn, hpk⟩ | ⟨k, hkn, hc1, hc2⟩
-  · -- d is a grid point of P
-    -- split P at k
-    rw [taggedSum_split P k hk0 hkn d hpk tags f α]
-    set P₁ := splitLeft P k hk0 (le_of_lt hkn) d hpk with hP₁
-    set P₂ := splitRight P k hkn d hpk with hP₂
-    have ht₁ : tagsInPartition P₁ tags :=
-      tagsInPartition_splitLeft P k hk0 hkn d hpk tags htags
-    have ht₂ : tagsInPartition P₂ (fun j => tags (k + j)) :=
-      tagsInPartition_splitRight P k hkn d hpk tags htags
-    have hm₁ : P₁.mesh < δ₁ := lt_of_le_of_lt (mesh_splitLeft_le P k hk0 hkn d hpk) hmesh₁
-    have hm₂ : P₂.mesh < δ₂ := lt_of_le_of_lt (mesh_splitRight_le P k hk0 hkn d hpk) hmesh₂
-    have hb₁ := H₁ P₁ tags ht₁ hm₁
-    have hb₂ := H₂ P₂ (fun j => tags (k + j)) ht₂ hm₂
-    have : taggedSum P₁ tags f α + taggedSum P₂ (fun j => tags (k + j)) f α - (L₁ + L₂)
-        = (taggedSum P₁ tags f α - L₁) + (taggedSum P₂ (fun j => tags (k + j)) f α - L₂) := by
-      ring
-    rw [this]
-    calc
-      |(taggedSum P₁ tags f α - L₁) + (taggedSum P₂ (fun j => tags (k + j)) f α - L₂)|
-          ≤ |taggedSum P₁ tags f α - L₁| + |taggedSum P₂ (fun j => tags (k + j)) f α - L₂| :=
-        abs_add_le _ _
-      _ < eps / 4 + eps / 4 := add_lt_add hb₁ hb₂
-      _ < eps := by linarith
-  · -- d falls strictly inside cell k; insert it
-    set P' := insertPoint P k hkn d hc1 hc2 with hP'
-    have hmeshP' : P'.mesh < min (min δ₁ δ₂) δ₃ :=
-      lt_of_le_of_lt (mesh_insert_le P k hkn d hc1 hc2) hmesh
-    have hmeshP'₁ : P'.mesh < δ₁ :=
-      lt_of_lt_of_le hmeshP' (le_trans (min_le_left _ _) (min_le_left _ _))
-    have hmeshP'₂ : P'.mesh < δ₂ :=
-      lt_of_lt_of_le hmeshP' (le_trans (min_le_left _ _) (min_le_right _ _))
-    -- transported tags
-    set tags' := insTags tags k d with htags'
-    have ht' : tagsInPartition P' tags' := insTags_valid P k hkn d hc1 hc2 tags htags
-    -- seam-term difference bound
-    have hseamid := taggedSum_insert_eq P k hkn d hc1 hc2 tags f α
-    -- Δα_k < 2 epsp
-    have hkmem : P.pts k ∈ Icc a b := cptk_mem P k hkn
-    have hk1mem : P.pts (k + 1) ∈ Icc a b := cptk1_mem P k hkn
-    have hdmem : d ∈ Icc a b := c_mem P k hkn d hc1 hc2
-    have hgapk : P.pts (k + 1) - P.pts k ≤ P.mesh := partition_length_le_mesh P hkn
-    have hdL_lt : α d - α (P.pts k) < epsp := by
-      have hdist : dist (P.pts k) d < δ₃ := by
-        rw [Real.dist_eq]
-        have : |P.pts k - d| ≤ P.mesh := by
-          rw [abs_le]; constructor <;> [nlinarith [le_of_lt hc2]; nlinarith [le_of_lt hc1]]
-        exact lt_of_le_of_lt this hmesh₃
-      have := Hδ₃ hdist
-      rw [Real.dist_eq] at this
-      have h := (abs_lt.mp this).1
-      linarith
-    have hdR_lt : α (P.pts (k + 1)) - α d < epsp := by
-      have hdist : dist (P.pts (k + 1)) d < δ₃ := by
-        rw [Real.dist_eq]
-        have : |P.pts (k + 1) - d| ≤ P.mesh := by
-          rw [abs_le]; constructor <;> [nlinarith [le_of_lt hc1]; nlinarith [le_of_lt hc2]]
-        exact lt_of_le_of_lt this hmesh₃
-      have := Hδ₃ hdist
-      rw [Real.dist_eq] at this
-      have h := (abs_lt.mp this).2
-      linarith
-    have hdL_nn : 0 ≤ α d - α (P.pts k) :=
-      sub_nonneg.mpr (hmono hkmem hdmem (le_of_lt hc1))
-    have hdR_nn : 0 ≤ α (P.pts (k + 1)) - α d :=
-      sub_nonneg.mpr (hmono hdmem hk1mem (le_of_lt hc2))
-    have hΔ_lt : α (P.pts (k + 1)) - α (P.pts k) < 2 * epsp := by linarith
-    have hΔ_nn : 0 ≤ α (P.pts (k + 1)) - α (P.pts k) := by linarith
-    -- seam difference in absolute value
-    have htagk_mem : tags k ∈ Icc a b :=
-      subinterval_subset_Icc_core P hkn (htags k hkn)
-    have hfsub : |f (tags k) - f d| ≤ Ω := abs_f_sub_le_omega hAbove hBelow htagk_mem hdmem
-    have hseam_diff : taggedSum P tags f α - taggedSum P' tags' f α
-        = (f (tags k) - f d) * (α (P.pts (k + 1)) - α (P.pts k)) := by
-      rw [hseamid]; ring
-    have hseam_bound : |taggedSum P tags f α - taggedSum P' tags' f α| ≤ Ω * (2 * epsp) := by
-      rw [hseam_diff, abs_mul, abs_of_nonneg hΔ_nn]
-      calc
-        |f (tags k) - f d| * (α (P.pts (k + 1)) - α (P.pts k))
-            ≤ Ω * (α (P.pts (k + 1)) - α (P.pts k)) :=
-          mul_le_mul_of_nonneg_right hfsub hΔ_nn
-        _ ≤ Ω * (2 * epsp) := mul_le_mul_of_nonneg_left (le_of_lt hΔ_lt) hΩnn
-    have hOmega2epsp : Ω * (2 * epsp) < eps / 2 := by
-      rw [hepsp]
-      rw [show Ω * (2 * (eps / (4 * (Ω + 1)))) = (Ω / (Ω + 1)) * (eps / 2) from by
-        field_simp; ring]
-      have hratio : Ω / (Ω + 1) < 1 := by
-        rw [div_lt_one hΩ1pos]; linarith
-      nlinarith [mul_pos (show (0:ℝ) < eps / 2 by positivity) (show (0:ℝ) < 1 by norm_num)]
-    -- now split P' at k+1 (grid point d)
-    have hdgrid : P'.pts (k + 1) = d := insertPoint_pts_seam P k hkn d hc1 hc2
-    have hk1pos : 0 < k + 1 := by omega
-    have hk1n : k + 1 < P'.n := by
-      have : P'.n = P.n + 1 := rfl
+    -- Expose the if/else logic explicitly for the last point
+    -- change (if h : (Fin.last (P1.n + P2.n)).val ≤ P1.n then _ else _) = b
+    have h_nle : ¬ ((Fin.last (P1.n + P2.n)).val ≤ P1.n) := by
+      have h1 := P2.hn
+      grind
+    rw [dif_neg h_nle]
+    -- Prove the shifted index hits the last point of P2
+    have eq_last : (⟨(Fin.last (P1.n + P2.n)).val - P1.n, by omega⟩ : Fin (P2.n + 1)) = Fin.last P2.n := by
+      ext
+      change (P1.n + P2.n) - P1.n = P2.n
       omega
-    have hsplitP' := taggedSum_split P' (k + 1) hk1pos hk1n d hdgrid tags' f α
-    set Q₁ := splitLeft P' (k + 1) hk1pos (le_of_lt hk1n) d hdgrid with hQ₁
-    set Q₂ := splitRight P' (k + 1) hk1n d hdgrid with hQ₂
-    have htQ₁ : tagsInPartition Q₁ tags' :=
-      tagsInPartition_splitLeft P' (k + 1) hk1pos hk1n d hdgrid tags' ht'
-    have htQ₂ : tagsInPartition Q₂ (fun j => tags' (k + 1 + j)) :=
-      tagsInPartition_splitRight P' (k + 1) hk1n d hdgrid tags' ht'
-    have hmQ₁ : Q₁.mesh < δ₁ :=
-      lt_of_le_of_lt (mesh_splitLeft_le P' (k + 1) hk1pos hk1n d hdgrid) hmeshP'₁
-    have hmQ₂ : Q₂.mesh < δ₂ :=
-      lt_of_le_of_lt (mesh_splitRight_le P' (k + 1) hk1pos hk1n d hdgrid) hmeshP'₂
-    have hbQ₁ := H₁ Q₁ tags' htQ₁ hmQ₁
-    have hbQ₂ := H₂ Q₂ (fun j => tags' (k + 1 + j)) htQ₂ hmQ₂
-    have hP'split_bound : |taggedSum P' tags' f α - (L₁ + L₂)| < eps / 2 := by
-      rw [hsplitP']
-      have : taggedSum Q₁ tags' f α + taggedSum Q₂ (fun j => tags' (k + 1 + j)) f α - (L₁ + L₂)
-          = (taggedSum Q₁ tags' f α - L₁)
-            + (taggedSum Q₂ (fun j => tags' (k + 1 + j)) f α - L₂) := by ring
-      rw [this]
-      calc
-        |(taggedSum Q₁ tags' f α - L₁)
-          + (taggedSum Q₂ (fun j => tags' (k + 1 + j)) f α - L₂)|
-            ≤ |taggedSum Q₁ tags' f α - L₁|
-              + |taggedSum Q₂ (fun j => tags' (k + 1 + j)) f α - L₂| := abs_add_le _ _
-        _ < eps / 4 + eps / 4 := add_lt_add hbQ₁ hbQ₂
-        _ = eps / 2 := by ring
-    -- triangle inequality
-    have hfinal : |taggedSum P tags f α - (L₁ + L₂)| < eps := by
-      have hsplit_eq : taggedSum P tags f α - (L₁ + L₂)
-          = (taggedSum P tags f α - taggedSum P' tags' f α)
-            + (taggedSum P' tags' f α - (L₁ + L₂)) := by ring
-      rw [hsplit_eq]
-      calc
-        |(taggedSum P tags f α - taggedSum P' tags' f α)
-          + (taggedSum P' tags' f α - (L₁ + L₂))|
-            ≤ |taggedSum P tags f α - taggedSum P' tags' f α|
-              + |taggedSum P' tags' f α - (L₁ + L₂)| := abs_add_le _ _
-        _ < eps / 2 + eps / 2 := by
-          apply add_lt_add_of_le_of_lt _ hP'split_bound
-          exact le_of_lt (lt_of_le_of_lt hseam_bound hOmega2epsp)
-        _ = eps := by ring
-    exact hfinal
+    rw [eq_last]
+    exact P2.pts_end
 
-/-! ## The tagged common limit glues across `d` (f-continuous branch). -/
+  strict_mono := by
+    intro i j hij
+    have h_val_lt : i.val < j.val := hij
+    -- Expose the if/else logic for both points
+    change (if hi : i.val ≤ P1.n then _ else _) < (if hj : j.val ≤ P1.n then _ else _)
+    split_ifs with hi hj
+    · -- Case 1: Both points are in P1
+      apply P1.strict_mono
+      exact h_val_lt
+    · -- Case 2: i is in P1, j is in P2
+      have h_left : P1.pts ⟨i.val, by omega⟩ ≤ P1.pts ⟨P1.n, by omega⟩ := by
+        apply P1.strict_mono.monotone
+        exact hi
+      have eq1 : (⟨P1.n, by omega⟩ : Fin (P1.n + 1)) = Fin.last P1.n := by ext; change P1.n = P1.n; omega
+      have eq2 : (⟨0, by omega⟩ : Fin (P2.n + 1)) = 0 := by ext; change 0 = 0; omega
+      have h_mid1 : P1.pts ⟨P1.n, by omega⟩ = c := by rw [eq1, P1.pts_end]
+      have h_mid2 : c = P2.pts ⟨0, by omega⟩ := by rw [eq2, P2.pts_start]
 
-theorem taggedCommonLimit_glue_f {a d b : ℝ} {f α : ℝ → ℝ} {L₁ L₂ : ℝ}
-    (h₁ : TaggedCommonLimit a d f α L₁) (h₂ : TaggedCommonLimit d b f α L₂)
-    (hfd : ContinuousAt f d) (had : a < d) (hdb : d < b) :
-    TaggedCommonLimit a b f α (L₁ + L₂) := by
-  obtain ⟨hs₁, hlim₁⟩ := h₁
-  obtain ⟨hs₂, hlim₂⟩ := h₂
-  have hs : SourceHypotheses a b f α := sourceHypotheses_glue ⟨hs₁.1, hs₁.2.1, hs₁.2.2.1, hs₁.2.2.2⟩
-    ⟨hs₂.1, hs₂.2.1, hs₂.2.2.1, hs₂.2.2.2⟩
-  obtain ⟨hab, hAbove, hBelow, hmono⟩ := hs
-  refine ⟨⟨hab, hAbove, hBelow, hmono⟩, ?_⟩
+      have h_right : P2.pts ⟨0, by omega⟩ < P2.pts ⟨j.val - P1.n, by omega⟩ := by
+        apply P2.strict_mono
+        change 0 < j.val - P1.n
+        omega
+
+      -- Bypass `rw` entirely by chaining inequalities via transitivity!
+      have h_left_c : P1.pts ⟨i.val, by omega⟩ ≤ c := le_trans h_left (le_of_eq h_mid1)
+      have h_c_right : c < P2.pts ⟨j.val - P1.n, by omega⟩ := lt_of_eq_of_lt h_mid2 h_right
+
+      exact lt_of_le_of_lt h_left_c h_c_right
+    · -- Case 3: i is in P2, j is in P1 (Mathematically impossible)
+        exfalso
+        omega
+    · -- Case 4: Both points are in P2
+        apply P2.strict_mono
+        change i.val - P1.n < j.val - P1.n
+        omega
+
+
+
+
+
+/-- The mesh of the concatenated partition is bounded by the maximum of the two meshes. -/
+lemma concatPartition_mesh {a c b : ℝ} (P1 : Partition a c) (P2 : Partition c b) :
+    (concatPartition P1 P2).mesh ≤ max P1.mesh P2.mesh := by
+  unfold Partition.mesh
+  apply Finset.sup'_le
+  intro i _
+
+  -- We branch on whether the interval index belongs to P1 or P2
+  by_cases h_lt : i.val < P1.n
+  · -- Case 1: The subinterval is entirely inside P1
+    have b1 : i.val < P1.n + 1 := by omega
+    have b2 : i.val + 1 < P1.n + 1 := by omega
+
+    have h_cast : (concatPartition P1 P2).pts i.castSucc = P1.pts ⟨i.val, b1⟩ := by
+      change (if h : i.castSucc.val ≤ P1.n then _ else _) = _
+      have h_cond : i.castSucc.val ≤ P1.n := by
+        have : i.castSucc.val = i.val := rfl
+        omega
+      rw [dif_pos h_cond]
+      congr 1;
+
+    have h_succ : (concatPartition P1 P2).pts i.succ = P1.pts ⟨i.val + 1, b2⟩ := by
+      change (if h : i.succ.val ≤ P1.n then _ else _) = _
+      have h_cond : i.succ.val ≤ P1.n := by
+        have : i.succ.val = i.val + 1 := rfl
+        omega
+      rw [dif_pos h_cond]
+      congr 1;
+
+    rw [h_cast, h_succ]
+
+    -- Map it back to the exact subinterval j in P1
+    let j : Fin P1.n := ⟨i.val, h_lt⟩
+    have eq_succ : (⟨i.val + 1, b2⟩ : Fin (P1.n + 1)) = j.succ := by ext; rfl
+    have eq_cast : (⟨i.val, b1⟩ : Fin (P1.n + 1)) = j.castSucc := by ext; rfl
+    rw [eq_succ, eq_cast]
+
+    have H_mesh : P1.pts j.succ - P1.pts j.castSucc ≤ P1.mesh := by
+      unfold Partition.mesh
+      exact Finset.le_sup' (fun (k : Fin P1.n) => P1.pts k.succ - P1.pts k.castSucc) (Finset.mem_univ j)
+
+    exact le_trans H_mesh (le_max_left _ _)
+
+  · -- Case 2: The subinterval belongs to P2
+    have h_ge : P1.n ≤ i.val := by omega
+
+    by_cases h_eq : i.val = P1.n
+    · -- Subcase 2a: The boundary interval (touches c)
+      have h_cast : (concatPartition P1 P2).pts i.castSucc = c := by
+        change (if h : i.castSucc.val ≤ P1.n then _ else _) = _
+        have h_cond : i.castSucc.val ≤ P1.n := by
+          have : i.castSucc.val = i.val := rfl
+          omega
+        rw [dif_pos h_cond]
+        have eq_last : (⟨i.castSucc.val, by omega⟩ : Fin (P1.n + 1)) = Fin.last P1.n := by
+          ext
+          have : i.castSucc.val = i.val := rfl
+          grind
+        rw [eq_last, P1.pts_end]
+
+      have b_succ : 1 < P2.n + 1 := by have := P2.hn; omega
+      have h_succ : (concatPartition P1 P2).pts i.succ = P2.pts ⟨1, b_succ⟩ := by
+        change (if h : i.succ.val ≤ P1.n then _ else _) = _
+        have h_cond : ¬(i.succ.val ≤ P1.n) := by
+          have : i.succ.val = i.val + 1 := rfl
+          omega
+        rw [dif_neg h_cond]
+        congr 1; ext
+        have : i.succ.val = i.val + 1 := rfl
+        grind
+
+      rw [h_cast, h_succ]
+
+      -- Map it to the 0-th subinterval in P2
+      let j : Fin P2.n := ⟨0, P2.hn⟩
+      have eq_succ : (⟨1, b_succ⟩ : Fin (P2.n + 1)) = j.succ := by ext; rfl
+      have eq_cast : P2.pts j.castSucc = c := by
+        have h0 : j.castSucc = 0 := by ext; rfl
+        rw [h0, P2.pts_start]
+
+      rw [eq_succ]
+
+      have H_mesh : P2.pts j.succ - P2.pts j.castSucc ≤ P2.mesh := by
+        unfold Partition.mesh
+        exact Finset.le_sup' (fun (k : Fin P2.n) => P2.pts k.succ - P2.pts k.castSucc) (Finset.mem_univ j)
+
+      have H_mesh_c : P2.pts j.succ - c ≤ P2.mesh := by linarith [H_mesh, eq_cast]
+      exact le_trans H_mesh_c (le_max_right _ _)
+
+    · -- Subcase 2b: Strictly inside P2
+      have h_gt : P1.n < i.val := by omega
+      have hi_lt : i.val < P1.n + P2.n := i.isLt
+
+      -- Pre-prove all bounds to keep omega completely isolated and happy!
+      have b1 : i.val - P1.n < P2.n + 1 := by omega
+      have b2 : i.val + 1 - P1.n < P2.n + 1 := by omega
+
+      have h_cast : (concatPartition P1 P2).pts i.castSucc = P2.pts ⟨i.val - P1.n, b1⟩ := by
+        change (if h : i.castSucc.val ≤ P1.n then _ else _) = _
+        have h_cond : ¬(i.castSucc.val ≤ P1.n) := by
+          have : i.castSucc.val = i.val := rfl
+          omega
+        rw [dif_neg h_cond]
+        congr 1;
+
+      have h_succ : (concatPartition P1 P2).pts i.succ = P2.pts ⟨i.val + 1 - P1.n, b2⟩ := by
+        change (if h : i.succ.val ≤ P1.n then _ else _) = _
+        have h_cond : ¬(i.succ.val ≤ P1.n) := by
+          have : i.succ.val = i.val + 1 := rfl
+          omega
+        rw [dif_neg h_cond]
+        congr 1;
+        -- have : i.succ.val = i.val + 1 := rfl
+        -- omega
+
+      rw [h_cast, h_succ]
+
+      -- Map it back to the exact shifted subinterval j in P2
+      have bj : i.val - P1.n < P2.n := by omega
+      let j : Fin P2.n := ⟨i.val - P1.n, bj⟩
+
+      have eq_succ : (⟨i.val + 1 - P1.n, b2⟩ : Fin (P2.n + 1)) = j.succ := by ext; grind
+      have eq_cast : (⟨i.val - P1.n, b1⟩ : Fin (P2.n + 1)) = j.castSucc := by ext; rfl
+
+      rw [eq_succ, eq_cast]
+
+      have H_mesh : P2.pts j.succ - P2.pts j.castSucc ≤ P2.mesh := by
+        unfold Partition.mesh
+        exact Finset.le_sup' (fun (k : Fin P2.n) => P2.pts k.succ - P2.pts k.castSucc) (Finset.mem_univ j)
+
+      exact le_trans H_mesh (le_max_right _ _)
+
+
+
+
+/-- Lower sums distribute perfectly over concatenated partitions. -/
+lemma lowerSum_concat {a c b : ℝ} (P1 : Partition a c) (P2 : Partition c b) (f α : ℝ → ℝ) :
+    lowerSum (concatPartition P1 P2) f α = lowerSum P1 f α + lowerSum P2 f α := by
+  let P := concatPartition P1 P2
+  unfold lowerSum
+
+  -- Define the generalized summation term on pure natural numbers
+  let g : ℕ → ℝ := fun i =>
+    if h : i < P.n then
+      lowerStep P f ⟨i, h⟩ * (α (P.pts ⟨i + 1, by omega⟩) - α (P.pts ⟨i, by omega⟩))
+    else 0
+
+  -- 1. Map the combined sum down to natural numbers
+  have h_sumP : ∑ i : Fin P.n, lowerStep P f i * (α (P.pts i.succ) - α (P.pts i.castSucc)) =
+                ∑ i ∈ Finset.range P.n, g i := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      dsimp only [g]
+      rw [dif_pos i.isLt]
+      congr
+
+  -- 2. Split the sum algebraically using Mathlib!
+  have hn : P.n = P1.n + P2.n := rfl
+  rw [h_sumP, hn, Finset.sum_range_add]
+
+  -- 3. Map the left half back to P1
+  have h_left : ∑ i : Fin P1.n, lowerStep P1 f i * (α (P1.pts i.succ) - α (P1.pts i.castSucc)) =
+                ∑ i ∈ Finset.range P1.n, g i := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      have hiP : i.val < P.n := by change i.val < P1.n + P2.n; have := i.isLt; omega
+      dsimp only [g]
+      rw [dif_pos hiP]
+      -- Prove the points match exactly
+      have eq_cast : P.pts ⟨i.val, by omega⟩ = P1.pts i.castSucc := by
+        change (if h : i.val ≤ P1.n then _ else _) = _
+        rw [dif_pos (by omega)]
+        congr 1;
+      have eq_succ : P.pts ⟨i.val + 1, by omega⟩ = P1.pts i.succ := by
+        change (if h : i.val + 1 ≤ P1.n then _ else _) = _
+        rw [dif_pos (by omega)]
+        congr 1;
+      -- Prove the subintervals match exactly
+      have h_sub : Partition.subinterval P ⟨i.val, hiP⟩ = Partition.subinterval P1 i := by
+        unfold Partition.subinterval
+        change Set.Icc (P.pts ⟨i.val, by omega⟩) (P.pts ⟨i.val + 1, by omega⟩) = _
+        rw [eq_cast, eq_succ]
+      -- Substitute into the step
+      have h_step : lowerStep P f ⟨i.val, hiP⟩ = lowerStep P1 f i := by
+        unfold lowerStep
+        rw [h_sub]
+      rw [h_step, eq_succ, eq_cast]
+
+  -- 4. Map the right half back to P2
+  have h_right : ∑ i : Fin P2.n, lowerStep P2 f i * (α (P2.pts i.succ) - α (P2.pts i.castSucc)) =
+                 ∑ i ∈ Finset.range P2.n, g (P1.n + i) := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      have hiP : P1.n + i.val < P.n := by change P1.n + i.val < P1.n + P2.n; have := i.isLt; omega
+      dsimp only [g]
+      rw [dif_pos hiP]
+
+      -- Carefully prove the left boundary condition matching 'c'
+      have eq_cast : P.pts ⟨P1.n + i.val, by omega⟩ = P2.pts i.castSucc := by
+        change (if h : P1.n + i.val ≤ P1.n then _ else _) = _
+        by_cases h0 : i.val = 0
+        · rw [dif_pos (by omega)]
+          have e1 : (⟨P1.n + i.val, by omega⟩ : Fin (P1.n + 1)) = Fin.last P1.n := by ext; grind
+          have e2 : i.castSucc = 0 := by ext; exact h0
+          rw [e1, P1.pts_end, e2, P2.pts_start]
+        · rw [dif_neg (by omega)]
+          congr 1; ext; grind
+
+      have eq_succ : P.pts ⟨P1.n + i.val + 1, by omega⟩ = P2.pts i.succ := by
+        change (if h : P1.n + i.val + 1 ≤ P1.n then _ else _) = _
+        rw [dif_neg (by omega)]
+        congr 1; ext; grind
+
+      have h_sub : Partition.subinterval P ⟨P1.n + i.val, hiP⟩ = Partition.subinterval P2 i := by
+        unfold Partition.subinterval
+        change Set.Icc (P.pts ⟨P1.n + i.val, by omega⟩) (P.pts ⟨P1.n + i.val + 1, by omega⟩) = _
+        rw [eq_cast, eq_succ]
+
+      have h_step : lowerStep P f ⟨P1.n + i.val, hiP⟩ = lowerStep P2 f i := by
+        unfold lowerStep
+        rw [h_sub]
+      rw [h_step, eq_succ, eq_cast]
+
+  -- 5. Combine everything!
+  rw [← h_left, ← h_right]
+
+
+/-- Upper sums distribute perfectly over concatenated partitions. -/
+lemma upperSum_concat {a c b : ℝ} (P1 : Partition a c) (P2 : Partition c b) (f α : ℝ → ℝ) :
+    upperSum (concatPartition P1 P2) f α = upperSum P1 f α + upperSum P2 f α := by
+  let P := concatPartition P1 P2
+  unfold upperSum
+
+  let g : ℕ → ℝ := fun i =>
+    if h : i < P.n then
+      upperStep P f ⟨i, h⟩ * (α (P.pts ⟨i + 1, by omega⟩) - α (P.pts ⟨i, by omega⟩))
+    else 0
+
+  have h_sumP : ∑ i : Fin P.n, upperStep P f i * (α (P.pts i.succ) - α (P.pts i.castSucc)) =
+                ∑ i ∈ Finset.range P.n, g i := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      dsimp only [g]
+      rw [dif_pos i.isLt]
+      congr
+
+  have hn : P.n = P1.n + P2.n := rfl
+  rw [h_sumP, hn, Finset.sum_range_add]
+
+  have h_left : ∑ i : Fin P1.n, upperStep P1 f i * (α (P1.pts i.succ) - α (P1.pts i.castSucc)) =
+                ∑ i ∈ Finset.range P1.n, g i := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      have hiP : i.val < P.n := by change i.val < P1.n + P2.n; have := i.isLt; omega
+      dsimp only [g]
+      rw [dif_pos hiP]
+      have eq_cast : P.pts ⟨i.val, by omega⟩ = P1.pts i.castSucc := by
+        change (if h : i.val ≤ P1.n then _ else _) = _
+        rw [dif_pos (by omega)]
+        congr 1;
+      have eq_succ : P.pts ⟨i.val + 1, by omega⟩ = P1.pts i.succ := by
+        change (if h : i.val + 1 ≤ P1.n then _ else _) = _
+        rw [dif_pos (by omega)]
+        congr 1;
+      have h_sub : Partition.subinterval P ⟨i.val, hiP⟩ = Partition.subinterval P1 i := by
+        unfold Partition.subinterval
+        change Set.Icc (P.pts ⟨i.val, by omega⟩) (P.pts ⟨i.val + 1, by omega⟩) = _
+        rw [eq_cast, eq_succ]
+      -- Only this line changes to upperStep
+      have h_step : upperStep P f ⟨i.val, hiP⟩ = upperStep P1 f i := by
+        unfold upperStep
+        rw [h_sub]
+      rw [h_step, eq_succ, eq_cast]
+
+  have h_right : ∑ i : Fin P2.n, upperStep P2 f i * (α (P2.pts i.succ) - α (P2.pts i.castSucc)) =
+                 ∑ i ∈ Finset.range P2.n, g (P1.n + i) := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      have hiP : P1.n + i.val < P.n := by change P1.n + i.val < P1.n + P2.n; have := i.isLt; omega
+      dsimp only [g]
+      rw [dif_pos hiP]
+      have eq_cast : P.pts ⟨P1.n + i.val, by omega⟩ = P2.pts i.castSucc := by
+        change (if h : P1.n + i.val ≤ P1.n then _ else _) = _
+        by_cases h0 : i.val = 0
+        · rw [dif_pos (by omega)]
+          have e1 : (⟨P1.n + i.val, by omega⟩ : Fin (P1.n + 1)) = Fin.last P1.n := by ext; grind
+          have e2 : i.castSucc = 0 := by ext; exact h0
+          rw [e1, P1.pts_end, e2, P2.pts_start]
+        · rw [dif_neg (by omega)]
+          congr 1; ext; grind
+      have eq_succ : P.pts ⟨P1.n + i.val + 1, by omega⟩ = P2.pts i.succ := by
+        change (if h : P1.n + i.val + 1 ≤ P1.n then _ else _) = _
+        rw [dif_neg (by omega)]
+        congr 1; ext; grind
+      have h_sub : Partition.subinterval P ⟨P1.n + i.val, hiP⟩ = Partition.subinterval P2 i := by
+        unfold Partition.subinterval
+        change Set.Icc (P.pts ⟨P1.n + i.val, by omega⟩) (P.pts ⟨P1.n + i.val + 1, by omega⟩) = _
+        rw [eq_cast, eq_succ]
+      -- Only this line changes to upperStep
+      have h_step : upperStep P f ⟨P1.n + i.val, hiP⟩ = upperStep P2 f i := by
+        unfold upperStep
+        rw [h_sub]
+      rw [h_step, eq_succ, eq_cast]
+
+  rw [← h_left, ← h_right]
+
+
+-----------------------------------------------------------------------------
+-- 3. The Cauchy Squeeze Lemma
+-----------------------------------------------------------------------------
+
+/--
+If `f` is integrable on the whole interval `[a, b]`, then the upper and lower sums
+on the subinterval `[a, c]` can be forced arbitrarily close together.
+(Proof idea: P = P1 ⊕ P2. Since U(P) - L(P) < ε, and U(P2) - L(P2) ≥ 0,
+ it mathematically forces U(P1) - L(P1) < ε).
+-/
+lemma upper_sub_lower_lt_left {a c b : ℝ} {f α : ℝ → ℝ}
+    (hac : a < c) (hcb : c < b) (hab : RSIntegrable f α a b)
+    (eps : ℝ) (heps : 0 < eps) :
+    ∃ delta > 0, ∀ P1 : Partition a c, P1.mesh < delta →
+      upperSum P1 f α - lowerSum P1 f α < eps := by
+
+  -- 1. Extract the limit properties on the full interval [a, b]
+  have h_spec : UpperLowerCommonLimit a b f α (rsIntegral f α a b hab) := rsIntegral_source_spec hab
+  rcases h_spec with ⟨hs_ab, hlim⟩
+
+  -- We will need to prove U(P2) - L(P2) ≥ 0, which requires SourceHypotheses on [c, b]
+  have hs_cb := sourceHypotheses_right hac hcb hs_ab
+
+  -- Ask for delta corresponding to eps / 2
+  have heps2 : 0 < eps / 2 := half_pos heps
+  rcases hlim (eps / 2) heps2 with ⟨δ, hδ, H_lim⟩
+
+  -- Obtain a valid, fine partition P2 for the right interval [c, b]
+  rcases exists_partition_mesh_lt hcb hδ with ⟨P2, hP2_mesh⟩
+
+  -- Provide delta as our witness for P1
+  refine ⟨δ, hδ, ?_⟩
+  intro P1 hP1_mesh
+
+  -- 2. Concatenate the partitions
+  let P := concatPartition P1 P2
+  have hP_mesh : P.mesh < δ := by
+    have h_max : max P1.mesh P2.mesh < δ := max_lt hP1_mesh hP2_mesh
+    exact lt_of_le_of_lt (concatPartition_mesh P1 P2) h_max
+
+  -- 3. Apply the global convergence bound to the concatenated partition P
+  have H_P := H_lim P hP_mesh
+
+  have h_P_bound : upperSum P f α - lowerSum P f α < eps := by
+    -- |U(P) - L| < eps/2 and |L(P) - L| < eps/2
+    have hU_lt : upperSum P f α - rsIntegral f α a b hab < eps / 2 := (abs_lt.mp H_P.1).2
+    have hL_lt : rsIntegral f α a b hab - lowerSum P f α < eps / 2 := by
+      have := (abs_lt.mp H_P.2).1
+      linarith
+    -- Therefore U(P) - L(P) < eps
+    linarith
+
+  -- 4. Distribute the sums across P1 and P2
+  have h_concat : upperSum P f α - lowerSum P f α =
+      (upperSum P1 f α - lowerSum P1 f α) + (upperSum P2 f α - lowerSum P2 f α) := by
+    -- Using `change` to unfold `P` into `concatPartition P1 P2` so rewrites trigger
+    change upperSum (concatPartition P1 P2) f α - lowerSum (concatPartition P1 P2) f α = _
+    rw [upperSum_concat P1 P2 f α, lowerSum_concat P1 P2 f α]
+    ring
+
+  -- 5. Prove that the remaining chunk from P2 is non-negative
+  have h_P2_nonneg : 0 ≤ upperSum P2 f α - lowerSum P2 f α := by
+    have h_le := DarbouxRS.lowerSum_le_upperSum_core P2 hs_cb
+    linarith
+
+  -- 6. Conclude algebraically!
+  linarith
+
+-----------------------------------------------------------------------------
+-- 4. Limits Converging to the Darboux Supremum
+-----------------------------------------------------------------------------
+
+
+/--
+Using the Cauchy Squeeze lemma, the upper and lower sums on [a, c]
+strictly converge to the Darboux supremum.
+-/
+lemma upperLowerCommonLimit_left {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b) (hab : RSIntegrable f α a b) :
+    UpperLowerCommonLimit a c f α (lowerDarboux a c f α) := by
+  -- 1. Extract source hypotheses for [a, c]
+  have hs_ab : SourceHypotheses a b f α := (rsIntegral_source_spec hab).1
+  have hs_ac : SourceHypotheses a c f α := sourceHypotheses_left hac hcb hs_ab
+
+  -- 2. Establish that the set of all lower sums is bounded above
+  have h_bdd : BddAbove (lowerSumSet a c f α) := by
+    -- We can use ANY partition's upper sum to bound it. We spawn a dummy uniform partition.
+    rcases exists_partition_mesh_lt hac zero_lt_one with ⟨P2, _⟩
+    use upperSum P2 f α
+    rintro y ⟨P1, rfl⟩
+    exact lowerSum_le_upperSum_any hs_ac P1 P2
+
+  -- 3. By definition of supremum, L(P) ≤ Darboux for all P
+  have h_L_le_Darboux : ∀ P : Partition a c, lowerSum P f α ≤ lowerDarboux a c f α := by
+    intro P
+    apply le_csSup h_bdd
+    exact ⟨P, rfl⟩
+
+  -- 4. Because Darboux is the LEAST upper bound, Darboux ≤ U(P) for all P
+  have h_Darboux_le_U : ∀ P : Partition a c, lowerDarboux a c f α ≤ upperSum P f α := by
+    intro P
+    apply csSup_le
+    · -- The set of lower sums is clearly non-empty
+      exact ⟨lowerSum P f α, ⟨P, rfl⟩⟩
+    · -- Every element in the set is bounded by U(P)
+      rintro y ⟨P1, rfl⟩
+      exact lowerSum_le_upperSum_any hs_ac P1 P
+
+  -- 5. Prepare the formal limit wrapper
+  refine ⟨hs_ac, ?_⟩
   intro eps heps
-  -- total α-increment
-  set A : ℝ := α b - α a with hA
-  have hAnn : 0 ≤ A := by
-    rw [hA]; have := hmono (⟨le_rfl, le_of_lt hab⟩ : a ∈ Icc a b)
-      (⟨hab.le, le_rfl⟩ : b ∈ Icc a b) hab.le; linarith
-  have hA1pos : 0 < A + 1 := by linarith
-  have hquarter : 0 < eps / 4 := by positivity
-  obtain ⟨δ₁, hδ₁, H₁⟩ := hlim₁ (eps / 4) hquarter
-  obtain ⟨δ₂, hδ₂, H₂⟩ := hlim₂ (eps / 4) hquarter
-  -- f-continuity tolerance
-  set eta : ℝ := eps / (4 * (A + 1)) with heta
-  have heta_pos : 0 < eta := by rw [heta]; positivity
-  obtain ⟨δ₃, hδ₃, Hδ₃⟩ := Metric.continuousAt_iff.mp hfd eta heta_pos
-  refine ⟨min (min δ₁ δ₂) δ₃, by positivity, ?_⟩
+
+  -- Ask the Cauchy Squeeze lemma for our delta
+  rcases upper_sub_lower_lt_left hac hcb hab eps heps with ⟨δ, hδ, H_sqz⟩
+  refine ⟨δ, hδ, ?_⟩
+
+  -- For any partition with mesh < δ
+  intro P hP_mesh
+  have h_sqz := H_sqz P hP_mesh
+
+  -- 6. Mathematically Squeeze the limits!
+  constructor
+  · -- Prove |U(P) - Darboux| < eps
+    have h1 : 0 ≤ upperSum P f α - lowerDarboux a c f α := sub_nonneg.mpr (h_Darboux_le_U P)
+    have h2 : upperSum P f α - lowerDarboux a c f α ≤ upperSum P f α - lowerSum P f α :=
+      sub_le_sub_left (h_L_le_Darboux P) _
+    have h3 : upperSum P f α - lowerDarboux a c f α < eps := lt_of_le_of_lt h2 h_sqz
+
+    -- Absolute value of a non-negative number is itself
+    rw [abs_of_nonneg h1]
+    exact h3
+
+  · -- Prove |L(P) - Darboux| < eps
+    have h1 : 0 ≤ lowerDarboux a c f α - lowerSum P f α := sub_nonneg.mpr (h_L_le_Darboux P)
+    have h2 : lowerDarboux a c f α - lowerSum P f α ≤ upperSum P f α - lowerSum P f α :=
+      sub_le_sub_right (h_Darboux_le_U P) _
+    have h3 : lowerDarboux a c f α - lowerSum P f α < eps := lt_of_le_of_lt h2 h_sqz
+
+    have h4 : |lowerDarboux a c f α - lowerSum P f α| < eps := by rwa [abs_of_nonneg h1]
+    -- |Darboux - L(P)| is identical to |L(P) - Darboux|
+    rw [abs_sub_comm] at h4
+    exact h4
+
+
+-----------------------------------------------------------------------------
+-- Helper Lemmas: Tagged Sums are Squeezed by Upper and Lower Sums
+-----------------------------------------------------------------------------
+
+lemma tag_le_upperStep {a b : ℝ} (P : Partition a b) (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) (i : Fin P.n) {f : ℝ → ℝ}
+    (hAbove : BddAbove (f '' Set.Icc a b)) :
+    f (tags i) ≤ upperStep P f i := by
+  unfold upperStep
+  have h_subset : Partition.subinterval P i ⊆ Set.Icc a b :=
+    DarbouxRS.subinterval_subset_Icc_core P
+
+  -- Bulletproof manual image inclusion
+  have h_img_subset : f '' Partition.subinterval P i ⊆ f '' Set.Icc a b := by
+    rintro _ ⟨x, hx, rfl⟩
+    exact ⟨x, h_subset hx, rfl⟩
+
+  have h_bdd : BddAbove (f '' Partition.subinterval P i) := BddAbove.mono h_img_subset hAbove
+  apply le_csSup h_bdd
+
+  -- Bulletproof manual image membership
+  exact ⟨tags i, htags i, rfl⟩
+
+lemma lowerStep_le_tag {a b : ℝ} (P : Partition a b) (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) (i : Fin P.n) {f : ℝ → ℝ}
+    (hBelow : BddBelow (f '' Set.Icc a b)) :
+    lowerStep P f i ≤ f (tags i) := by
+  unfold lowerStep
+  have h_subset : Partition.subinterval P i ⊆ Set.Icc a b :=
+    DarbouxRS.subinterval_subset_Icc_core P
+
+  -- Bulletproof manual image inclusion
+  have h_img_subset : f '' Partition.subinterval P i ⊆ f '' Set.Icc a b := by
+    rintro _ ⟨x, hx, rfl⟩
+    exact ⟨x, h_subset hx, rfl⟩
+
+  have h_bdd : BddBelow (f '' Partition.subinterval P i) := BddBelow.mono h_img_subset hBelow
+  apply csInf_le h_bdd
+
+  -- Bulletproof manual image membership
+  exact ⟨tags i, htags i, rfl⟩
+
+lemma taggedSum_le_upperSum {a b : ℝ} (P : Partition a b) (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) {f α : ℝ → ℝ} (hs : SourceHypotheses a b f α) :
+    taggedSum P tags f α ≤ upperSum P f α := by
+  -- Extract hAbove without destroying hs
+  have hAbove := hs.2.1
+  unfold taggedSum upperSum
+  apply Finset.sum_le_sum
+  intro i _
+  have h_step := tag_le_upperStep P tags htags i hAbove
+  have h_inc : 0 ≤ α (P.pts i.succ) - α (P.pts i.castSucc) :=
+    DarbouxRS.partition_increment_nonneg_of_source_core P hs
+  exact mul_le_mul_of_nonneg_right h_step h_inc
+
+lemma lowerSum_le_taggedSum {a b : ℝ} (P : Partition a b) (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) {f α : ℝ → ℝ} (hs : SourceHypotheses a b f α) :
+    lowerSum P f α ≤ taggedSum P tags f α := by
+  -- Extract hBelow without destroying hs
+  have hBelow := hs.2.2.1
+  unfold lowerSum taggedSum
+  apply Finset.sum_le_sum
+  intro i _
+  have h_step := lowerStep_le_tag P tags htags i hBelow
+  have h_inc : 0 ≤ α (P.pts i.succ) - α (P.pts i.castSucc) :=
+    DarbouxRS.partition_increment_nonneg_of_source_core P hs
+  exact mul_le_mul_of_nonneg_right h_step h_inc
+
+-----------------------------------------------------------------------------
+-- The Squeeze Theorem Application
+-----------------------------------------------------------------------------
+
+/--
+If the Darboux limit exists, the local tagged sums must also converge to it.
+-/
+lemma taggedCommonLimit_left {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b) (hab : RSIntegrable f α a b) :
+    TaggedCommonLimit a c f α (lowerDarboux a c f α) := by
+
+  -- 1. Obtain the Darboux convergence we just proved
+  have h_ul := upperLowerCommonLimit_left hac hcb hab
+  rcases h_ul with ⟨hs_ac, hlim⟩
+
+  -- 2. Prepare the tagged limit wrapper
+  refine ⟨hs_ac, ?_⟩
+  intro eps heps
+  rcases hlim eps heps with ⟨δ, hδ, H_lim⟩
+  refine ⟨δ, hδ, ?_⟩
   intro P tags htags hmesh
-  have hmesh₁ : P.mesh < δ₁ :=
-    lt_of_lt_of_le hmesh (le_trans (min_le_left _ _) (min_le_left _ _))
-  have hmesh₂ : P.mesh < δ₂ :=
-    lt_of_lt_of_le hmesh (le_trans (min_le_left _ _) (min_le_right _ _))
-  have hmesh₃ : P.mesh < δ₃ := lt_of_lt_of_le hmesh (min_le_right _ _)
-  rcases locate_point P had hdb with ⟨k, hk0, hkn, hpk⟩ | ⟨k, hkn, hc1, hc2⟩
-  · -- grid point: identical to α branch
-    rw [taggedSum_split P k hk0 hkn d hpk tags f α]
-    set P₁ := splitLeft P k hk0 (le_of_lt hkn) d hpk with hP₁
-    set P₂ := splitRight P k hkn d hpk with hP₂
-    have ht₁ : tagsInPartition P₁ tags :=
-      tagsInPartition_splitLeft P k hk0 hkn d hpk tags htags
-    have ht₂ : tagsInPartition P₂ (fun j => tags (k + j)) :=
-      tagsInPartition_splitRight P k hkn d hpk tags htags
-    have hm₁ : P₁.mesh < δ₁ := lt_of_le_of_lt (mesh_splitLeft_le P k hk0 hkn d hpk) hmesh₁
-    have hm₂ : P₂.mesh < δ₂ := lt_of_le_of_lt (mesh_splitRight_le P k hk0 hkn d hpk) hmesh₂
-    have hb₁ := H₁ P₁ tags ht₁ hm₁
-    have hb₂ := H₂ P₂ (fun j => tags (k + j)) ht₂ hm₂
-    have : taggedSum P₁ tags f α + taggedSum P₂ (fun j => tags (k + j)) f α - (L₁ + L₂)
-        = (taggedSum P₁ tags f α - L₁) + (taggedSum P₂ (fun j => tags (k + j)) f α - L₂) := by
-      ring
-    rw [this]
-    calc
-      |(taggedSum P₁ tags f α - L₁) + (taggedSum P₂ (fun j => tags (k + j)) f α - L₂)|
-          ≤ |taggedSum P₁ tags f α - L₁| + |taggedSum P₂ (fun j => tags (k + j)) f α - L₂| :=
-        abs_add_le _ _
-      _ < eps / 4 + eps / 4 := add_lt_add hb₁ hb₂
-      _ < eps := by linarith
-  · -- interior cell: insert d, seam bound via f-continuity
-    set P' := insertPoint P k hkn d hc1 hc2 with hP'
-    have hmeshP' : P'.mesh < min (min δ₁ δ₂) δ₃ :=
-      lt_of_le_of_lt (mesh_insert_le P k hkn d hc1 hc2) hmesh
-    have hmeshP'₁ : P'.mesh < δ₁ :=
-      lt_of_lt_of_le hmeshP' (le_trans (min_le_left _ _) (min_le_left _ _))
-    have hmeshP'₂ : P'.mesh < δ₂ :=
-      lt_of_lt_of_le hmeshP' (le_trans (min_le_left _ _) (min_le_right _ _))
-    set tags' := insTags tags k d with htags'
-    have ht' : tagsInPartition P' tags' := insTags_valid P k hkn d hc1 hc2 tags htags
-    have hseamid := taggedSum_insert_eq P k hkn d hc1 hc2 tags f α
-    have hkmem : P.pts k ∈ Icc a b := cptk_mem P k hkn
-    have hk1mem : P.pts (k + 1) ∈ Icc a b := cptk1_mem P k hkn
-    have hdmem : d ∈ Icc a b := c_mem P k hkn d hc1 hc2
-    have hΔ_nn : 0 ≤ α (P.pts (k + 1)) - α (P.pts k) :=
-      sub_nonneg.mpr (hmono hkmem hk1mem (le_of_lt (lt_trans hc1 hc2)))
-    have hΔ_le : α (P.pts (k + 1)) - α (P.pts k) ≤ A :=
-      alpha_gap_le_total P hkn hmono
-    -- |f(tags k) - f d| < eta via f-continuity
-    have htagk_mem : tags k ∈ subinterval P k := htags k hkn
-    have htagk_dist : |tags k - d| ≤ P.mesh :=
-      crossing_point_dist_le P hkn hc1 hc2 htagk_mem
-    have hfclose : |f (tags k) - f d| < eta := by
-      have hdist : dist (tags k) d < δ₃ := by
-        rw [Real.dist_eq]; exact lt_of_le_of_lt htagk_dist hmesh₃
-      have hh := Hδ₃ hdist
-      rw [Real.dist_eq] at hh; exact hh
-    have hseam_diff : taggedSum P tags f α - taggedSum P' tags' f α
-        = (f (tags k) - f d) * (α (P.pts (k + 1)) - α (P.pts k)) := by
-      rw [hseamid]; ring
-    have hseam_bound : |taggedSum P tags f α - taggedSum P' tags' f α| ≤ eta * A := by
-      rw [hseam_diff, abs_mul, abs_of_nonneg hΔ_nn]
-      calc
-        |f (tags k) - f d| * (α (P.pts (k + 1)) - α (P.pts k))
-            ≤ eta * (α (P.pts (k + 1)) - α (P.pts k)) :=
-          mul_le_mul_of_nonneg_right (le_of_lt hfclose) hΔ_nn
-        _ ≤ eta * A := mul_le_mul_of_nonneg_left hΔ_le (le_of_lt heta_pos)
-    have hetaA : eta * A < eps / 2 := by
-      rw [heta]
-      rw [show eps / (4 * (A + 1)) * A = (A / (A + 1)) * (eps / 4) from by
-        rw [div_mul_eq_mul_div, div_mul_div_comm]; ring_nf]
-      have hratio : A / (A + 1) < 1 := by rw [div_lt_one hA1pos]; linarith
-      have hq : 0 < eps / 4 := by positivity
-      nlinarith [mul_lt_mul_of_pos_right hratio hq]
-    -- split P' at k+1
-    have hdgrid : P'.pts (k + 1) = d := insertPoint_pts_seam P k hkn d hc1 hc2
-    have hk1pos : 0 < k + 1 := by omega
-    have hk1n : k + 1 < P'.n := by have : P'.n = P.n + 1 := rfl; omega
-    have hsplitP' := taggedSum_split P' (k + 1) hk1pos hk1n d hdgrid tags' f α
-    set Q₁ := splitLeft P' (k + 1) hk1pos (le_of_lt hk1n) d hdgrid with hQ₁
-    set Q₂ := splitRight P' (k + 1) hk1n d hdgrid with hQ₂
-    have htQ₁ : tagsInPartition Q₁ tags' :=
-      tagsInPartition_splitLeft P' (k + 1) hk1pos hk1n d hdgrid tags' ht'
-    have htQ₂ : tagsInPartition Q₂ (fun j => tags' (k + 1 + j)) :=
-      tagsInPartition_splitRight P' (k + 1) hk1n d hdgrid tags' ht'
-    have hmQ₁ : Q₁.mesh < δ₁ :=
-      lt_of_le_of_lt (mesh_splitLeft_le P' (k + 1) hk1pos hk1n d hdgrid) hmeshP'₁
-    have hmQ₂ : Q₂.mesh < δ₂ :=
-      lt_of_le_of_lt (mesh_splitRight_le P' (k + 1) hk1pos hk1n d hdgrid) hmeshP'₂
-    have hbQ₁ := H₁ Q₁ tags' htQ₁ hmQ₁
-    have hbQ₂ := H₂ Q₂ (fun j => tags' (k + 1 + j)) htQ₂ hmQ₂
-    have hP'split_bound : |taggedSum P' tags' f α - (L₁ + L₂)| < eps / 2 := by
-      rw [hsplitP']
-      have : taggedSum Q₁ tags' f α + taggedSum Q₂ (fun j => tags' (k + 1 + j)) f α - (L₁ + L₂)
-          = (taggedSum Q₁ tags' f α - L₁)
-            + (taggedSum Q₂ (fun j => tags' (k + 1 + j)) f α - L₂) := by ring
-      rw [this]
-      calc
-        |(taggedSum Q₁ tags' f α - L₁)
-          + (taggedSum Q₂ (fun j => tags' (k + 1 + j)) f α - L₂)|
-            ≤ |taggedSum Q₁ tags' f α - L₁|
-              + |taggedSum Q₂ (fun j => tags' (k + 1 + j)) f α - L₂| := abs_add_le _ _
-        _ < eps / 4 + eps / 4 := add_lt_add hbQ₁ hbQ₂
-        _ = eps / 2 := by ring
-    have hfinal : |taggedSum P tags f α - (L₁ + L₂)| < eps := by
-      have hsplit_eq : taggedSum P tags f α - (L₁ + L₂)
-          = (taggedSum P tags f α - taggedSum P' tags' f α)
-            + (taggedSum P' tags' f α - (L₁ + L₂)) := by ring
-      rw [hsplit_eq]
-      calc
-        |(taggedSum P tags f α - taggedSum P' tags' f α)
-          + (taggedSum P' tags' f α - (L₁ + L₂))|
-            ≤ |taggedSum P tags f α - taggedSum P' tags' f α|
-              + |taggedSum P' tags' f α - (L₁ + L₂)| := abs_add_le _ _
-        _ < eps / 2 + eps / 2 := by
-          apply add_lt_add_of_le_of_lt _ hP'split_bound
-          exact le_of_lt (lt_of_le_of_lt hseam_bound hetaA)
-        _ = eps := by ring
-    exact hfinal
 
-/-! ## The upper/lower common limit glues across `d` (α-continuous branch). -/
+  -- 3. Obtain the Darboux limits and Squeeze bounds for this specific partition
+  have h_P := H_lim P hmesh
+  have h_upper := taggedSum_le_upperSum P tags htags hs_ac
+  have h_lower := lowerSum_le_taggedSum P tags htags hs_ac
 
-theorem upperLowerCommonLimit_glue_alpha {a d b : ℝ} {f α : ℝ → ℝ} {L₁ L₂ : ℝ}
-    (h₁ : UpperLowerCommonLimit a d f α L₁) (h₂ : UpperLowerCommonLimit d b f α L₂)
-    (hαd : ContinuousAt α d) (had : a < d) (hdb : d < b) :
-    UpperLowerCommonLimit a b f α (L₁ + L₂) := by
-  obtain ⟨hs₁, hlim₁⟩ := h₁
-  obtain ⟨hs₂, hlim₂⟩ := h₂
-  have hs : SourceHypotheses a b f α := sourceHypotheses_glue ⟨hs₁.1, hs₁.2.1, hs₁.2.2.1, hs₁.2.2.2⟩
-    ⟨hs₂.1, hs₂.2.1, hs₂.2.2.1, hs₂.2.2.2⟩
-  obtain ⟨hab, hAbove, hBelow, hmono⟩ := hs
-  refine ⟨⟨hab, hAbove, hBelow, hmono⟩, ?_⟩
-  intro eps heps
-  set Ω := Omega f a b with hΩ
-  have hΩnn : 0 ≤ Ω := omega_nonneg hab hAbove hBelow
-  have hquarter : 0 < eps / 4 := by positivity
-  obtain ⟨δ₁, hδ₁, H₁⟩ := hlim₁ (eps / 4) hquarter
-  obtain ⟨δ₂, hδ₂, H₂⟩ := hlim₂ (eps / 4) hquarter
-  set epsp : ℝ := eps / (4 * (Ω + 1)) with hepsp
-  have hΩ1pos : 0 < Ω + 1 := by linarith
-  have hepsp_pos : 0 < epsp := by rw [hepsp]; positivity
-  obtain ⟨δ₃, hδ₃, Hδ₃⟩ := Metric.continuousAt_iff.mp hαd epsp hepsp_pos
-  refine ⟨min (min δ₁ δ₂) δ₃, by positivity, ?_⟩
-  intro P hmesh
-  have hmesh₁ : P.mesh < δ₁ :=
-    lt_of_lt_of_le hmesh (le_trans (min_le_left _ _) (min_le_left _ _))
-  have hmesh₂ : P.mesh < δ₂ :=
-    lt_of_lt_of_le hmesh (le_trans (min_le_left _ _) (min_le_right _ _))
-  have hmesh₃ : P.mesh < δ₃ := lt_of_lt_of_le hmesh (min_le_right _ _)
-  rcases locate_point P had hdb with ⟨k, hk0, hkn, hpk⟩ | ⟨k, hkn, hc1, hc2⟩
-  · -- d is a grid point
-    set P₁ := splitLeft P k hk0 (le_of_lt hkn) d hpk with hP₁
-    set P₂ := splitRight P k hkn d hpk with hP₂
-    have hm₁ : P₁.mesh < δ₁ := lt_of_le_of_lt (mesh_splitLeft_le P k hk0 hkn d hpk) hmesh₁
-    have hm₂ : P₂.mesh < δ₂ := lt_of_le_of_lt (mesh_splitRight_le P k hk0 hkn d hpk) hmesh₂
-    have hb₁ := H₁ P₁ hm₁
-    have hb₂ := H₂ P₂ hm₂
-    constructor
-    · rw [upperSum_split P k hk0 hkn d hpk f α]
-      have heq : upperSum P₁ f α + upperSum P₂ f α - (L₁ + L₂)
-          = (upperSum P₁ f α - L₁) + (upperSum P₂ f α - L₂) := by ring
-      rw [heq]
-      calc
-        |(upperSum P₁ f α - L₁) + (upperSum P₂ f α - L₂)|
-            ≤ |upperSum P₁ f α - L₁| + |upperSum P₂ f α - L₂| := abs_add_le _ _
-        _ < eps / 4 + eps / 4 := add_lt_add hb₁.1 hb₂.1
-        _ < eps := by linarith
-    · rw [lowerSum_split P k hk0 hkn d hpk f α]
-      have heq : lowerSum P₁ f α + lowerSum P₂ f α - (L₁ + L₂)
-          = (lowerSum P₁ f α - L₁) + (lowerSum P₂ f α - L₂) := by ring
-      rw [heq]
-      calc
-        |(lowerSum P₁ f α - L₁) + (lowerSum P₂ f α - L₂)|
-            ≤ |lowerSum P₁ f α - L₁| + |lowerSum P₂ f α - L₂| := abs_add_le _ _
-        _ < eps / 4 + eps / 4 := add_lt_add hb₁.2 hb₂.2
-        _ < eps := by linarith
-  · -- interior cell: insert d
-    set P' := insertPoint P k hkn d hc1 hc2 with hP'
-    have hmeshP' : P'.mesh < min (min δ₁ δ₂) δ₃ :=
-      lt_of_le_of_lt (mesh_insert_le P k hkn d hc1 hc2) hmesh
-    have hmeshP'₁ : P'.mesh < δ₁ :=
-      lt_of_lt_of_le hmeshP' (le_trans (min_le_left _ _) (min_le_left _ _))
-    have hmeshP'₂ : P'.mesh < δ₂ :=
-      lt_of_lt_of_le hmeshP' (le_trans (min_le_left _ _) (min_le_right _ _))
-    -- Δα bound
-    have hkmem : P.pts k ∈ Icc a b := cptk_mem P k hkn
-    have hk1mem : P.pts (k + 1) ∈ Icc a b := cptk1_mem P k hkn
-    have hdmem : d ∈ Icc a b := c_mem P k hkn d hc1 hc2
-    have hgapk : P.pts (k + 1) - P.pts k ≤ P.mesh := partition_length_le_mesh P hkn
-    have hdL_lt : α d - α (P.pts k) < epsp := by
-      have hdist : dist (P.pts k) d < δ₃ := by
-        rw [Real.dist_eq]
-        have : |P.pts k - d| ≤ P.mesh := by
-          rw [abs_le]; constructor <;> [nlinarith [le_of_lt hc2]; nlinarith [le_of_lt hc1]]
-        exact lt_of_le_of_lt this hmesh₃
-      have hh := Hδ₃ hdist
-      rw [Real.dist_eq] at hh
-      have h := (abs_lt.mp hh).1
+  -- 4. Unpack the absolute value gaps:
+  -- |U - L| < eps implies U - L < eps
+  have hU_lt : upperSum P f α - lowerDarboux a c f α < eps := (abs_lt.mp h_P.1).2
+
+  -- |L - L| < eps implies -eps < L - L
+  have hL_gt : -(eps) < lowerSum P f α - lowerDarboux a c f α := (abs_lt.mp h_P.2).1
+
+  -- 5. Squeeze the Tagged sum into the exact same absolute value gap using linarith!
+  apply abs_lt.mpr
+  constructor
+  · linarith
+  · linarith
+
+-----------------------------------------------------------------------------
+-- 5. Main Existence Theorem
+-----------------------------------------------------------------------------
+
+/--
+If f is Riemann-Stieltjes integrable on [a, b], it is integrable on [a, c].
+-/
+theorem rsIntegrable_left {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b) (hab : RSIntegrable f α a b) :
+    RSIntegrable f α a c := by
+  -- The existential witness is satisfied by explicitly packing our `lowerDarboux` value
+  -- alongside the two convergence lemmas we isolated above!
+  exact ⟨ ⟨
+    lowerDarboux a c f α,
+    upperLowerCommonLimit_left hac hcb hab,
+    taggedCommonLimit_left hac hcb hab
+  ⟩ ⟩
+
+
+-----------------------------------------------------------------------------
+-- 6. The Right Subinterval Limits and Existence (Symmetric to Left)
+-----------------------------------------------------------------------------
+
+/--
+If `f` is integrable on the whole interval `[a, b]`, then the upper and lower sums
+on the right subinterval `[c, b]` can be forced arbitrarily close together.
+-/
+lemma upper_sub_lower_lt_right {a c b : ℝ} {f α : ℝ → ℝ}
+    (hac : a < c) (hcb : c < b) (hab : RSIntegrable f α a b)
+    (eps : ℝ) (heps : 0 < eps) :
+    ∃ delta > 0, ∀ P2 : Partition c b, P2.mesh < delta →
+      upperSum P2 f α - lowerSum P2 f α < eps := by
+
+  have h_spec : UpperLowerCommonLimit a b f α (rsIntegral f α a b hab) := rsIntegral_source_spec hab
+  rcases h_spec with ⟨hs_ab, hlim⟩
+
+  -- We need to prove U(P1) - L(P1) ≥ 0, which requires SourceHypotheses on [a, c]
+  have hs_ac := sourceHypotheses_left hac hcb hs_ab
+
+  have heps2 : 0 < eps / 2 := half_pos heps
+  rcases hlim (eps / 2) heps2 with ⟨δ, hδ, H_lim⟩
+
+  -- Obtain a valid, fine partition P1 for the left interval [a, c]
+  rcases exists_partition_mesh_lt hac hδ with ⟨P1, hP1_mesh⟩
+
+  refine ⟨δ, hδ, ?_⟩
+  intro P2 hP2_mesh
+
+  let P := concatPartition P1 P2
+  have hP_mesh : P.mesh < δ := by
+    have h_max : max P1.mesh P2.mesh < δ := max_lt hP1_mesh hP2_mesh
+    exact lt_of_le_of_lt (concatPartition_mesh P1 P2) h_max
+
+  have H_P := H_lim P hP_mesh
+
+  have h_P_bound : upperSum P f α - lowerSum P f α < eps := by
+    have hU_lt : upperSum P f α - rsIntegral f α a b hab < eps / 2 := (abs_lt.mp H_P.1).2
+    have hL_lt : rsIntegral f α a b hab - lowerSum P f α < eps / 2 := by
+      have := (abs_lt.mp H_P.2).1
       linarith
-    have hdR_lt : α (P.pts (k + 1)) - α d < epsp := by
-      have hdist : dist (P.pts (k + 1)) d < δ₃ := by
-        rw [Real.dist_eq]
-        have : |P.pts (k + 1) - d| ≤ P.mesh := by
-          rw [abs_le]; constructor <;> [nlinarith [le_of_lt hc1]; nlinarith [le_of_lt hc2]]
-        exact lt_of_le_of_lt this hmesh₃
-      have hh := Hδ₃ hdist
-      rw [Real.dist_eq] at hh
-      have h := (abs_lt.mp hh).2
-      linarith
-    have hdL_nn : 0 ≤ α d - α (P.pts k) :=
-      sub_nonneg.mpr (hmono hkmem hdmem (le_of_lt hc1))
-    have hdR_nn : 0 ≤ α (P.pts (k + 1)) - α d :=
-      sub_nonneg.mpr (hmono hdmem hk1mem (le_of_lt hc2))
-    have hΔ_lt : α (P.pts (k + 1)) - α (P.pts k) < 2 * epsp := by linarith
-    have hΔ_nn : 0 ≤ α (P.pts (k + 1)) - α (P.pts k) := by linarith
-    -- oscillation bound M_k - m_k ≤ Ω
-    have hosc : upperStep P f k - lowerStep P f k ≤ Ω :=
-      cell_osc_le_omega P hkn hAbove hBelow
-    have hOmega2epsp : Ω * (2 * epsp) < eps / 2 := by
-      rw [hepsp]
-      rw [show Ω * (2 * (eps / (4 * (Ω + 1)))) = (Ω / (Ω + 1)) * (eps / 2) from by
-        field_simp; ring]
-      have hratio : Ω / (Ω + 1) < 1 := by rw [div_lt_one hΩ1pos]; linarith
-      nlinarith [mul_pos (show (0:ℝ) < eps / 2 by positivity) (show (0:ℝ) < 1 by norm_num)]
-    -- change-bound → Ω·2εp
-    have hchU : |upperSum P f α - upperSum P' f α| < eps / 2 := by
-      have hb := abs_upperSum_insert_le P k hkn d hc1 hc2 f α hAbove hBelow hmono
-      have hchain : (upperStep P f k - lowerStep P f k) * (α (P.pts (k + 1)) - α (P.pts k))
-          ≤ Ω * (2 * epsp) := by
-        calc
-          (upperStep P f k - lowerStep P f k) * (α (P.pts (k + 1)) - α (P.pts k))
-              ≤ Ω * (α (P.pts (k + 1)) - α (P.pts k)) :=
-            mul_le_mul_of_nonneg_right hosc hΔ_nn
-          _ ≤ Ω * (2 * epsp) := mul_le_mul_of_nonneg_left (le_of_lt hΔ_lt) hΩnn
-      exact lt_of_le_of_lt (le_trans hb hchain) hOmega2epsp
-    have hchL : |lowerSum P f α - lowerSum P' f α| < eps / 2 := by
-      have hb := abs_lowerSum_insert_le P k hkn d hc1 hc2 f α hAbove hBelow hmono
-      have hchain : (upperStep P f k - lowerStep P f k) * (α (P.pts (k + 1)) - α (P.pts k))
-          ≤ Ω * (2 * epsp) := by
-        calc
-          (upperStep P f k - lowerStep P f k) * (α (P.pts (k + 1)) - α (P.pts k))
-              ≤ Ω * (α (P.pts (k + 1)) - α (P.pts k)) :=
-            mul_le_mul_of_nonneg_right hosc hΔ_nn
-          _ ≤ Ω * (2 * epsp) := mul_le_mul_of_nonneg_left (le_of_lt hΔ_lt) hΩnn
-      exact lt_of_le_of_lt (le_trans hb hchain) hOmega2epsp
-    -- split P' at k+1 (grid point d)
-    have hdgrid : P'.pts (k + 1) = d := insertPoint_pts_seam P k hkn d hc1 hc2
-    have hk1pos : 0 < k + 1 := by omega
-    have hk1n : k + 1 < P'.n := by have : P'.n = P.n + 1 := rfl; omega
-    set Q₁ := splitLeft P' (k + 1) hk1pos (le_of_lt hk1n) d hdgrid with hQ₁
-    set Q₂ := splitRight P' (k + 1) hk1n d hdgrid with hQ₂
-    have hmQ₁ : Q₁.mesh < δ₁ :=
-      lt_of_le_of_lt (mesh_splitLeft_le P' (k + 1) hk1pos hk1n d hdgrid) hmeshP'₁
-    have hmQ₂ : Q₂.mesh < δ₂ :=
-      lt_of_le_of_lt (mesh_splitRight_le P' (k + 1) hk1pos hk1n d hdgrid) hmeshP'₂
-    have hbQ₁ := H₁ Q₁ hmQ₁
-    have hbQ₂ := H₂ Q₂ hmQ₂
-    constructor
-    · -- upper
-      have hP'bound : |upperSum P' f α - (L₁ + L₂)| < eps / 2 := by
-        rw [upperSum_split P' (k + 1) hk1pos hk1n d hdgrid f α]
-        have heq : upperSum Q₁ f α + upperSum Q₂ f α - (L₁ + L₂)
-            = (upperSum Q₁ f α - L₁) + (upperSum Q₂ f α - L₂) := by ring
-        rw [heq]
-        calc
-          |(upperSum Q₁ f α - L₁) + (upperSum Q₂ f α - L₂)|
-              ≤ |upperSum Q₁ f α - L₁| + |upperSum Q₂ f α - L₂| := abs_add_le _ _
-          _ < eps / 4 + eps / 4 := add_lt_add hbQ₁.1 hbQ₂.1
-          _ = eps / 2 := by ring
-      have heq : upperSum P f α - (L₁ + L₂)
-          = (upperSum P f α - upperSum P' f α) + (upperSum P' f α - (L₁ + L₂)) := by ring
-      rw [heq]
-      calc
-        |(upperSum P f α - upperSum P' f α) + (upperSum P' f α - (L₁ + L₂))|
-            ≤ |upperSum P f α - upperSum P' f α| + |upperSum P' f α - (L₁ + L₂)| :=
-          abs_add_le _ _
-        _ < eps / 2 + eps / 2 := add_lt_add hchU hP'bound
-        _ = eps := by ring
-    · -- lower
-      have hP'bound : |lowerSum P' f α - (L₁ + L₂)| < eps / 2 := by
-        rw [lowerSum_split P' (k + 1) hk1pos hk1n d hdgrid f α]
-        have heq : lowerSum Q₁ f α + lowerSum Q₂ f α - (L₁ + L₂)
-            = (lowerSum Q₁ f α - L₁) + (lowerSum Q₂ f α - L₂) := by ring
-        rw [heq]
-        calc
-          |(lowerSum Q₁ f α - L₁) + (lowerSum Q₂ f α - L₂)|
-              ≤ |lowerSum Q₁ f α - L₁| + |lowerSum Q₂ f α - L₂| := abs_add_le _ _
-          _ < eps / 4 + eps / 4 := add_lt_add hbQ₁.2 hbQ₂.2
-          _ = eps / 2 := by ring
-      have heq : lowerSum P f α - (L₁ + L₂)
-          = (lowerSum P f α - lowerSum P' f α) + (lowerSum P' f α - (L₁ + L₂)) := by ring
-      rw [heq]
-      calc
-        |(lowerSum P f α - lowerSum P' f α) + (lowerSum P' f α - (L₁ + L₂))|
-            ≤ |lowerSum P f α - lowerSum P' f α| + |lowerSum P' f α - (L₁ + L₂)| :=
-          abs_add_le _ _
-        _ < eps / 2 + eps / 2 := add_lt_add hchL hP'bound
-        _ = eps := by ring
+    linarith
 
+  have h_concat : upperSum P f α - lowerSum P f α =
+      (upperSum P1 f α - lowerSum P1 f α) + (upperSum P2 f α - lowerSum P2 f α) := by
+    change upperSum (concatPartition P1 P2) f α - lowerSum (concatPartition P1 P2) f α = _
+    rw [upperSum_concat P1 P2 f α, lowerSum_concat P1 P2 f α]
+    ring
 
+  -- Prove that the chunk from P1 is non-negative
+  have h_P1_nonneg : 0 ≤ upperSum P1 f α - lowerSum P1 f α := by
+    have h_le := DarbouxRS.lowerSum_le_upperSum_core P1 hs_ac
+    linarith
 
+  linarith
 
-/-! ## The upper/lower common limit glues across `d` (f-continuous branch). -/
+/--
+Using the Cauchy Squeeze lemma, the upper and lower sums on [c, b]
+strictly converge to the Darboux supremum.
+-/
+lemma upperLowerCommonLimit_right {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b) (hab : RSIntegrable f α a b) :
+    UpperLowerCommonLimit c b f α (lowerDarboux c b f α) := by
+  have hs_ab : SourceHypotheses a b f α := (rsIntegral_source_spec hab).1
+  have hs_cb : SourceHypotheses c b f α := sourceHypotheses_right hac hcb hs_ab
 
-theorem upperLowerCommonLimit_glue_f {a d b : ℝ} {f α : ℝ → ℝ} {L₁ L₂ : ℝ}
-    (h₁ : UpperLowerCommonLimit a d f α L₁) (h₂ : UpperLowerCommonLimit d b f α L₂)
-    (hfd : ContinuousAt f d) (had : a < d) (hdb : d < b) :
-    UpperLowerCommonLimit a b f α (L₁ + L₂) := by
-  obtain ⟨hs₁, hlim₁⟩ := h₁
-  obtain ⟨hs₂, hlim₂⟩ := h₂
-  have hs : SourceHypotheses a b f α := sourceHypotheses_glue ⟨hs₁.1, hs₁.2.1, hs₁.2.2.1, hs₁.2.2.2⟩
-    ⟨hs₂.1, hs₂.2.1, hs₂.2.2.1, hs₂.2.2.2⟩
-  obtain ⟨hab, hAbove, hBelow, hmono⟩ := hs
-  refine ⟨⟨hab, hAbove, hBelow, hmono⟩, ?_⟩
+  have h_bdd : BddAbove (lowerSumSet c b f α) := by
+    rcases exists_partition_mesh_lt hcb zero_lt_one with ⟨P2, _⟩
+    use upperSum P2 f α
+    rintro y ⟨P1, rfl⟩
+    exact lowerSum_le_upperSum_any hs_cb P1 P2
+
+  have h_L_le_Darboux : ∀ P : Partition c b, lowerSum P f α ≤ lowerDarboux c b f α := by
+    intro P
+    apply le_csSup h_bdd
+    exact ⟨P, rfl⟩
+
+  have h_Darboux_le_U : ∀ P : Partition c b, lowerDarboux c b f α ≤ upperSum P f α := by
+    intro P
+    apply csSup_le
+    · exact ⟨lowerSum P f α, ⟨P, rfl⟩⟩
+    · rintro y ⟨P1, rfl⟩
+      exact lowerSum_le_upperSum_any hs_cb P1 P
+
+  refine ⟨hs_cb, ?_⟩
   intro eps heps
-  set A : ℝ := α b - α a with hA
-  have hAnn : 0 ≤ A := by
-    rw [hA]; have := hmono (⟨le_rfl, le_of_lt hab⟩ : a ∈ Icc a b)
-      (⟨hab.le, le_rfl⟩ : b ∈ Icc a b) hab.le; linarith
-  have hA1pos : 0 < A + 1 := by linarith
-  have hquarter : 0 < eps / 4 := by positivity
-  obtain ⟨δ₁, hδ₁, H₁⟩ := hlim₁ (eps / 4) hquarter
-  obtain ⟨δ₂, hδ₂, H₂⟩ := hlim₂ (eps / 4) hquarter
-  set eta : ℝ := eps / (4 * (A + 1)) with heta
-  have heta_pos : 0 < eta := by rw [heta]; positivity
-  obtain ⟨δ₃, hδ₃, Hδ₃⟩ := Metric.continuousAt_iff.mp hfd eta heta_pos
-  refine ⟨min (min δ₁ δ₂) δ₃, by positivity, ?_⟩
-  intro P hmesh
-  have hmesh₁ : P.mesh < δ₁ :=
-    lt_of_lt_of_le hmesh (le_trans (min_le_left _ _) (min_le_left _ _))
-  have hmesh₂ : P.mesh < δ₂ :=
-    lt_of_lt_of_le hmesh (le_trans (min_le_left _ _) (min_le_right _ _))
-  have hmesh₃ : P.mesh < δ₃ := lt_of_lt_of_le hmesh (min_le_right _ _)
-  rcases locate_point P had hdb with ⟨k, hk0, hkn, hpk⟩ | ⟨k, hkn, hc1, hc2⟩
-  · -- grid point
-    set P₁ := splitLeft P k hk0 (le_of_lt hkn) d hpk with hP₁
-    set P₂ := splitRight P k hkn d hpk with hP₂
-    have hm₁ : P₁.mesh < δ₁ := lt_of_le_of_lt (mesh_splitLeft_le P k hk0 hkn d hpk) hmesh₁
-    have hm₂ : P₂.mesh < δ₂ := lt_of_le_of_lt (mesh_splitRight_le P k hk0 hkn d hpk) hmesh₂
-    have hb₁ := H₁ P₁ hm₁
-    have hb₂ := H₂ P₂ hm₂
-    constructor
-    · rw [upperSum_split P k hk0 hkn d hpk f α]
-      have heq : upperSum P₁ f α + upperSum P₂ f α - (L₁ + L₂)
-          = (upperSum P₁ f α - L₁) + (upperSum P₂ f α - L₂) := by ring
-      rw [heq]
-      calc
-        |(upperSum P₁ f α - L₁) + (upperSum P₂ f α - L₂)|
-            ≤ |upperSum P₁ f α - L₁| + |upperSum P₂ f α - L₂| := abs_add_le _ _
-        _ < eps / 4 + eps / 4 := add_lt_add hb₁.1 hb₂.1
-        _ < eps := by linarith
-    · rw [lowerSum_split P k hk0 hkn d hpk f α]
-      have heq : lowerSum P₁ f α + lowerSum P₂ f α - (L₁ + L₂)
-          = (lowerSum P₁ f α - L₁) + (lowerSum P₂ f α - L₂) := by ring
-      rw [heq]
-      calc
-        |(lowerSum P₁ f α - L₁) + (lowerSum P₂ f α - L₂)|
-            ≤ |lowerSum P₁ f α - L₁| + |lowerSum P₂ f α - L₂| := abs_add_le _ _
-        _ < eps / 4 + eps / 4 := add_lt_add hb₁.2 hb₂.2
-        _ < eps := by linarith
-  · -- interior cell
-    set P' := insertPoint P k hkn d hc1 hc2 with hP'
-    have hmeshP' : P'.mesh < min (min δ₁ δ₂) δ₃ :=
-      lt_of_le_of_lt (mesh_insert_le P k hkn d hc1 hc2) hmesh
-    have hmeshP'₁ : P'.mesh < δ₁ :=
-      lt_of_lt_of_le hmeshP' (le_trans (min_le_left _ _) (min_le_left _ _))
-    have hmeshP'₂ : P'.mesh < δ₂ :=
-      lt_of_lt_of_le hmeshP' (le_trans (min_le_left _ _) (min_le_right _ _))
-    have hΔ_nn : 0 ≤ α (P.pts (k + 1)) - α (P.pts k) :=
-      sub_nonneg.mpr (hmono (cptk_mem P k hkn) (cptk1_mem P k hkn)
-        (le_of_lt (lt_trans hc1 hc2)))
-    have hΔ_le : α (P.pts (k + 1)) - α (P.pts k) ≤ A := alpha_gap_le_total P hkn hmono
-    -- crossing-cell f-closeness ⇒ M_k - m_k ≤ 2η
-    have hclose : ∀ x ∈ subinterval P k, |f x - f d| ≤ eta := by
-      intro x hx
-      have hxdist : |x - d| ≤ P.mesh := crossing_point_dist_le P hkn hc1 hc2 hx
-      have hdist : dist x d < δ₃ := by
-        rw [Real.dist_eq]; exact lt_of_le_of_lt hxdist hmesh₃
-      have hh := Hδ₃ hdist
-      rw [Real.dist_eq] at hh; exact le_of_lt hh
-    have hosc : upperStep P f k - lowerStep P f k ≤ 2 * eta :=
-      cell_osc_le_of_close P hkn hclose
-    have h2etaA : (2 * eta) * A < eps / 2 := by
-      rw [heta]
-      have hne : (A + 1) ≠ 0 := by positivity
-      have hid : 2 * (eps / (4 * (A + 1))) * A = (A / (A + 1)) * (eps / 2) := by
-        field_simp
-        ring
-      rw [hid]
-      have hratio : A / (A + 1) < 1 := by rw [div_lt_one hA1pos]; linarith
-      have hq : 0 < eps / 2 := by positivity
-      nlinarith [mul_lt_mul_of_pos_right hratio hq]
-    have hchU : |upperSum P f α - upperSum P' f α| < eps / 2 := by
-      have hb := abs_upperSum_insert_le P k hkn d hc1 hc2 f α hAbove hBelow hmono
-      have hchain : (upperStep P f k - lowerStep P f k) * (α (P.pts (k + 1)) - α (P.pts k))
-          ≤ (2 * eta) * A := by
-        calc
-          (upperStep P f k - lowerStep P f k) * (α (P.pts (k + 1)) - α (P.pts k))
-              ≤ (2 * eta) * (α (P.pts (k + 1)) - α (P.pts k)) :=
-            mul_le_mul_of_nonneg_right hosc hΔ_nn
-          _ ≤ (2 * eta) * A := mul_le_mul_of_nonneg_left hΔ_le (by positivity)
-      exact lt_of_le_of_lt (le_trans hb hchain) h2etaA
-    have hchL : |lowerSum P f α - lowerSum P' f α| < eps / 2 := by
-      have hb := abs_lowerSum_insert_le P k hkn d hc1 hc2 f α hAbove hBelow hmono
-      have hchain : (upperStep P f k - lowerStep P f k) * (α (P.pts (k + 1)) - α (P.pts k))
-          ≤ (2 * eta) * A := by
-        calc
-          (upperStep P f k - lowerStep P f k) * (α (P.pts (k + 1)) - α (P.pts k))
-              ≤ (2 * eta) * (α (P.pts (k + 1)) - α (P.pts k)) :=
-            mul_le_mul_of_nonneg_right hosc hΔ_nn
-          _ ≤ (2 * eta) * A := mul_le_mul_of_nonneg_left hΔ_le (by positivity)
-      exact lt_of_le_of_lt (le_trans hb hchain) h2etaA
-    have hdgrid : P'.pts (k + 1) = d := insertPoint_pts_seam P k hkn d hc1 hc2
-    have hk1pos : 0 < k + 1 := by omega
-    have hk1n : k + 1 < P'.n := by have : P'.n = P.n + 1 := rfl; omega
-    set Q₁ := splitLeft P' (k + 1) hk1pos (le_of_lt hk1n) d hdgrid with hQ₁
-    set Q₂ := splitRight P' (k + 1) hk1n d hdgrid with hQ₂
-    have hmQ₁ : Q₁.mesh < δ₁ :=
-      lt_of_le_of_lt (mesh_splitLeft_le P' (k + 1) hk1pos hk1n d hdgrid) hmeshP'₁
-    have hmQ₂ : Q₂.mesh < δ₂ :=
-      lt_of_le_of_lt (mesh_splitRight_le P' (k + 1) hk1pos hk1n d hdgrid) hmeshP'₂
-    have hbQ₁ := H₁ Q₁ hmQ₁
-    have hbQ₂ := H₂ Q₂ hmQ₂
-    constructor
-    · have hP'bound : |upperSum P' f α - (L₁ + L₂)| < eps / 2 := by
-        rw [upperSum_split P' (k + 1) hk1pos hk1n d hdgrid f α]
-        have heq : upperSum Q₁ f α + upperSum Q₂ f α - (L₁ + L₂)
-            = (upperSum Q₁ f α - L₁) + (upperSum Q₂ f α - L₂) := by ring
-        rw [heq]
-        calc
-          |(upperSum Q₁ f α - L₁) + (upperSum Q₂ f α - L₂)|
-              ≤ |upperSum Q₁ f α - L₁| + |upperSum Q₂ f α - L₂| := abs_add_le _ _
-          _ < eps / 4 + eps / 4 := add_lt_add hbQ₁.1 hbQ₂.1
-          _ = eps / 2 := by ring
-      have heq : upperSum P f α - (L₁ + L₂)
-          = (upperSum P f α - upperSum P' f α) + (upperSum P' f α - (L₁ + L₂)) := by ring
-      rw [heq]
-      calc
-        |(upperSum P f α - upperSum P' f α) + (upperSum P' f α - (L₁ + L₂))|
-            ≤ |upperSum P f α - upperSum P' f α| + |upperSum P' f α - (L₁ + L₂)| :=
-          abs_add_le _ _
-        _ < eps / 2 + eps / 2 := add_lt_add hchU hP'bound
-        _ = eps := by ring
-    · have hP'bound : |lowerSum P' f α - (L₁ + L₂)| < eps / 2 := by
-        rw [lowerSum_split P' (k + 1) hk1pos hk1n d hdgrid f α]
-        have heq : lowerSum Q₁ f α + lowerSum Q₂ f α - (L₁ + L₂)
-            = (lowerSum Q₁ f α - L₁) + (lowerSum Q₂ f α - L₂) := by ring
-        rw [heq]
-        calc
-          |(lowerSum Q₁ f α - L₁) + (lowerSum Q₂ f α - L₂)|
-              ≤ |lowerSum Q₁ f α - L₁| + |lowerSum Q₂ f α - L₂| := abs_add_le _ _
-          _ < eps / 4 + eps / 4 := add_lt_add hbQ₁.2 hbQ₂.2
-          _ = eps / 2 := by ring
-      have heq : lowerSum P f α - (L₁ + L₂)
-          = (lowerSum P f α - lowerSum P' f α) + (lowerSum P' f α - (L₁ + L₂)) := by ring
-      rw [heq]
-      calc
-        |(lowerSum P f α - lowerSum P' f α) + (lowerSum P' f α - (L₁ + L₂))|
-            ≤ |lowerSum P f α - lowerSum P' f α| + |lowerSum P' f α - (L₁ + L₂)| :=
-          abs_add_le _ _
-        _ < eps / 2 + eps / 2 := add_lt_add hchL hP'bound
-        _ = eps := by ring
 
-/-! ## Final assembly: integrability and the value identity. -/
+  rcases upper_sub_lower_lt_right hac hcb hab eps heps with ⟨δ, hδ, H_sqz⟩
+  refine ⟨δ, hδ, ?_⟩
 
-/-- The witness gluing two RS integrals across `d` (α-continuous branch). -/
-noncomputable def rsIntegralWitness_glue_alpha {f α : ℝ → ℝ} {a d b : ℝ}
-    (hac : RSIntegrable f α a d) (hcb : RSIntegrable f α d b)
-    (hαd : ContinuousAt α d) (had : a < d) (hdb : d < b) :
-    RSIntegralWitness f α a b where
-  value := rsIntegral f α a d hac + rsIntegral f α d b hcb
-  source_limit :=
-    upperLowerCommonLimit_glue_alpha (rsIntegral_source_spec hac)
-      (rsIntegral_source_spec hcb) hαd had hdb
-  tagged_limit :=
-    taggedCommonLimit_glue_alpha (rsIntegral_spec hac)
-      (rsIntegral_spec hcb) hαd had hdb
+  intro P hP_mesh
+  have h_sqz := H_sqz P hP_mesh
 
-noncomputable def rsIntegrable_glue_alpha {f α : ℝ → ℝ} {a d b : ℝ}
-    (hac : RSIntegrable f α a d) (hcb : RSIntegrable f α d b)
-    (hαd : ContinuousAt α d) (had : a < d) (hdb : d < b) :
-    RSIntegrable f α a b :=
-  ⟨rsIntegralWitness_glue_alpha hac hcb hαd had hdb⟩
+  constructor
+  · have h1 : 0 ≤ upperSum P f α - lowerDarboux c b f α := sub_nonneg.mpr (h_Darboux_le_U P)
+    have h2 : upperSum P f α - lowerDarboux c b f α ≤ upperSum P f α - lowerSum P f α :=
+      sub_le_sub_left (h_L_le_Darboux P) _
+    have h3 : upperSum P f α - lowerDarboux c b f α < eps := lt_of_le_of_lt h2 h_sqz
+    rw [abs_of_nonneg h1]
+    exact h3
 
-theorem rsIntegral_glue_alpha {f α : ℝ → ℝ} {a d b : ℝ}
-    (hac : RSIntegrable f α a d) (hcb : RSIntegrable f α d b)
-    (hαd : ContinuousAt α d) (had : a < d) (hdb : d < b) :
-    rsIntegral f α a b (rsIntegrable_glue_alpha hac hcb hαd had hdb)
-      = rsIntegral f α a d hac + rsIntegral f α d b hcb :=
-  taggedCommonLimit_unique
-    (rsIntegral_spec (rsIntegrable_glue_alpha hac hcb hαd had hdb))
-    (taggedCommonLimit_glue_alpha (rsIntegral_spec hac) (rsIntegral_spec hcb) hαd had hdb)
+  · have h1 : 0 ≤ lowerDarboux c b f α - lowerSum P f α := sub_nonneg.mpr (h_L_le_Darboux P)
+    have h2 : lowerDarboux c b f α - lowerSum P f α ≤ upperSum P f α - lowerSum P f α :=
+      sub_le_sub_right (h_Darboux_le_U P) _
+    have h3 : lowerDarboux c b f α - lowerSum P f α < eps := lt_of_le_of_lt h2 h_sqz
+    have h4 : |lowerDarboux c b f α - lowerSum P f α| < eps := by rwa [abs_of_nonneg h1]
+    rw [abs_sub_comm] at h4
+    exact h4
 
-/-- The witness gluing two RS integrals across `d` (f-continuous branch). -/
-noncomputable def rsIntegralWitness_glue_f {f α : ℝ → ℝ} {a d b : ℝ}
-    (hac : RSIntegrable f α a d) (hcb : RSIntegrable f α d b)
-    (hfd : ContinuousAt f d) (had : a < d) (hdb : d < b) :
-    RSIntegralWitness f α a b where
-  value := rsIntegral f α a d hac + rsIntegral f α d b hcb
-  source_limit :=
-    upperLowerCommonLimit_glue_f (rsIntegral_source_spec hac)
-      (rsIntegral_source_spec hcb) hfd had hdb
-  tagged_limit :=
-    taggedCommonLimit_glue_f (rsIntegral_spec hac)
-      (rsIntegral_spec hcb) hfd had hdb
+/--
+If the Darboux limit exists, the local tagged sums must also converge to it on [c, b].
+-/
+lemma taggedCommonLimit_right {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b) (hab : RSIntegrable f α a b) :
+    TaggedCommonLimit c b f α (lowerDarboux c b f α) := by
 
-noncomputable def rsIntegrable_glue_f {f α : ℝ → ℝ} {a d b : ℝ}
-    (hac : RSIntegrable f α a d) (hcb : RSIntegrable f α d b)
-    (hfd : ContinuousAt f d) (had : a < d) (hdb : d < b) :
-    RSIntegrable f α a b :=
-  ⟨rsIntegralWitness_glue_f hac hcb hfd had hdb⟩
+  have h_ul := upperLowerCommonLimit_right hac hcb hab
+  rcases h_ul with ⟨hs_cb, hlim⟩
 
-theorem rsIntegral_glue_f {f α : ℝ → ℝ} {a d b : ℝ}
-    (hac : RSIntegrable f α a d) (hcb : RSIntegrable f α d b)
-    (hfd : ContinuousAt f d) (had : a < d) (hdb : d < b) :
-    rsIntegral f α a b (rsIntegrable_glue_f hac hcb hfd had hdb)
-      = rsIntegral f α a d hac + rsIntegral f α d b hcb :=
-  taggedCommonLimit_unique
-    (rsIntegral_spec (rsIntegrable_glue_f hac hcb hfd had hdb))
-    (taggedCommonLimit_glue_f (rsIntegral_spec hac) (rsIntegral_spec hcb) hfd had hdb)
+  refine ⟨hs_cb, ?_⟩
+  intro eps heps
+  rcases hlim eps heps with ⟨δ, hδ, H_lim⟩
+  refine ⟨δ, hδ, ?_⟩
+  intro P tags htags hmesh
 
-/-- Item 4 of Theorem 1.2: integrability and additivity across an interior split
-point `d`, under continuity of `α` or `f` at `d`. -/
-theorem rsIntegral_glue {f α : ℝ → ℝ} {a d b : ℝ}
-    (had : a < d) (hdb : d < b)
-    (hac : RSIntegrable f α a d) (hcb : RSIntegrable f α d b)
-    (hcont : ContinuousAt α d ∨ ContinuousAt f d) :
-    ∃ hab : RSIntegrable f α a b,
-      rsIntegral f α a b hab = rsIntegral f α a d hac + rsIntegral f α d b hcb := by
-  rcases hcont with hαd | hfd
-  · exact ⟨rsIntegrable_glue_alpha hac hcb hαd had hdb,
-      rsIntegral_glue_alpha hac hcb hαd had hdb⟩
-  · exact ⟨rsIntegrable_glue_f hac hcb hfd had hdb,
-      rsIntegral_glue_f hac hcb hfd had hdb⟩
+  have h_P := H_lim P hmesh
+  have h_upper := taggedSum_le_upperSum P tags htags hs_cb
+  have h_lower := lowerSum_le_taggedSum P tags htags hs_cb
 
-end Thm12Item4
+  have hU_lt : upperSum P f α - lowerDarboux c b f α < eps := (abs_lt.mp h_P.1).2
+  have hL_gt : -(eps) < lowerSum P f α - lowerDarboux c b f α := (abs_lt.mp h_P.2).1
+
+  apply abs_lt.mpr
+  constructor
+  · linarith
+  · linarith
+
+/--
+If f is Riemann-Stieltjes integrable on [a, b], it is integrable on [c, b].
+-/
+theorem rsIntegrable_right {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b) (hab : RSIntegrable f α a b) :
+    RSIntegrable f α c b := by
+  exact ⟨ ⟨
+    lowerDarboux c b f α,
+    upperLowerCommonLimit_right hac hcb hab,
+    taggedCommonLimit_right hac hcb hab
+  ⟩ ⟩
+
+end SubintervalIntegrability
 
 
 
 
+/-
+The core limit additivity: If the tagged sums converge to L₁ on [a, c]
+and to L₂ on [c, b], then their combined partition sums converge to L₁ + L₂
+on the whole interval [a, b].
+(This requires the partition surgery bound: |S(P) - S(P ∪ {c})| < ε).
+-/
+-- theorem taggedCommonLimit_split {f α : ℝ → ℝ} {a c b L₁ L₂ : ℝ}
+--     (hac : a < c) (hcb : c < b)
+--     (h₁ : TaggedCommonLimit a c f α L₁)
+--     (h₂ : TaggedCommonLimit c b f α L₂) :
+--     TaggedCommonLimit a b f α (L₁ + L₂) := sorry
+
+
+/-- Combines tags from P1 and P2 into tags for the concatenated partition. -/
+def concatTags {a c b : ℝ} {P1 : Partition a c} {P2 : Partition c b}
+    (tags1 : Fin P1.n → ℝ) (tags2 : Fin P2.n → ℝ) : Fin (concatPartition P1 P2).n → ℝ :=
+  fun i =>
+    if h : i.val < P1.n then
+      tags1 ⟨i.val, h⟩
+    else
+      tags2 ⟨i.val - P1.n, by
+        -- Explicitly state the bound so omega sees P1.n + P2.n instead of an opaque function call
+        have h_bound : i.val < P1.n + P2.n := i.isLt
+        omega⟩
+
+
+/-- The concatenated tags are strictly inside the concatenated subintervals. -/
+lemma tagsInPartition_concat {a c b : ℝ} {P1 : Partition a c} {P2 : Partition c b}
+    {tags1 : Fin P1.n → ℝ} {tags2 : Fin P2.n → ℝ}
+    (ht1 : tagsInPartition P1 tags1) (ht2 : tagsInPartition P2 tags2) :
+    tagsInPartition (concatPartition P1 P2) (concatTags tags1 tags2) := by
+
+  intro i
+  unfold Partition.subinterval concatTags
+  let P := concatPartition P1 P2
+  simp
+  by_cases h_lt : i.val < P1.n
+  · -- Case 1: Inside P1
+    have hiP : i.val < P1.n := h_lt
+    rw [dif_pos hiP]
+    have b1 : i.val < P1.n + 1 := by omega
+    have b2 : i.val + 1 < P1.n + 1 := by omega
+    have eq_cast : P.pts i.castSucc = P1.pts ⟨i.val, b1⟩ := by
+      change (if h : i.castSucc.val ≤ P1.n then _ else _) = _
+      have h_cond : i.castSucc.val ≤ P1.n := by have : i.castSucc.val = i.val := rfl; omega
+      rw [dif_pos h_cond]; congr 1;
+    have eq_succ : P.pts i.succ = P1.pts ⟨i.val + 1, b2⟩ := by
+      change (if h : i.succ.val ≤ P1.n then _ else _) = _
+      have h_cond : i.succ.val ≤ P1.n := by have : i.succ.val = i.val + 1 := rfl; omega
+      rw [dif_pos h_cond]; congr 1;
+    rw [eq_cast, eq_succ]
+    exact ht1 ⟨i.val, hiP⟩
+
+  · -- Case 2: Inside P2
+    have h_ge : P1.n ≤ i.val := by omega
+    rw [dif_neg h_lt]
+    have hi_lt : i.val < P1.n + P2.n := i.isLt
+
+    -- We MUST branch on the boundary, just like in the mesh proof!
+    by_cases h_eq : i.val = P1.n
+    · -- Subcase 2a: The boundary interval (touches c)
+      have b1 : i.val - P1.n < P2.n := by omega
+      have b2 : 1 < P2.n + 1 := by have := P2.hn; omega
+
+      have eq_cast : P.pts i.castSucc = P2.pts ⟨0, by omega⟩ := by
+        change (if h : i.castSucc.val ≤ P1.n then _ else _) = _
+        -- On the boundary, the castSucc is EXACTLY P1.n, so it uses the first branch!
+        have h_cond : i.castSucc.val ≤ P1.n := by have : i.castSucc.val = i.val := rfl; omega
+        rw [dif_pos h_cond]
+        have e1 : (⟨i.castSucc.val, by omega⟩ : Fin (P1.n + 1)) = Fin.last P1.n := by ext; have : i.castSucc.val = i.val := rfl; grind
+        have e2 : (⟨0, by omega⟩ : Fin (P2.n + 1)) = 0 := by ext; rfl
+        rw [e1, P1.pts_end, e2, P2.pts_start]
+
+      have eq_succ : P.pts i.succ = P2.pts ⟨1, b2⟩ := by
+        change (if h : i.succ.val ≤ P1.n then _ else _) = _
+        have h_cond : ¬(i.succ.val ≤ P1.n) := by have : i.succ.val = i.val + 1 := rfl; omega
+        rw [dif_neg h_cond]
+        congr 1; ext; have : i.succ.val = i.val + 1 := rfl; grind
+
+      rw [eq_cast, eq_succ]
+
+      -- Map it to the exact tag logic for the first interval of P2
+      have h_tag_eq : tags2 ⟨i.val - P1.n, b1⟩ = tags2 ⟨0, P2.hn⟩ := by congr 1; ext; grind
+      rw [h_tag_eq]
+
+      have e3 : (⟨0, by omega⟩ : Fin (P2.n + 1)) = (⟨0, P2.hn⟩ : Fin P2.n).castSucc := by ext; rfl
+      have e4 : (⟨1, b2⟩ : Fin (P2.n + 1)) = (⟨0, P2.hn⟩ : Fin P2.n).succ := by ext; rfl
+      rw [e3, e4]
+
+      exact ht2 ⟨0, P2.hn⟩
+
+    · -- Subcase 2b: Strictly inside P2
+      have h_gt : P1.n < i.val := by omega
+      have b1 : i.val - P1.n < P2.n + 1 := by omega
+      have b2 : i.val + 1 - P1.n < P2.n + 1 := by omega
+
+      have eq_cast : P.pts i.castSucc = P2.pts ⟨i.val - P1.n, b1⟩ := by
+        change (if h : i.castSucc.val ≤ P1.n then _ else _) = _
+        -- Now it is strictly greater, so it uses the second branch safely!
+        have h_cond : ¬(i.castSucc.val ≤ P1.n) := by have : i.castSucc.val = i.val := rfl; omega
+        rw [dif_neg h_cond]; congr 1;
+
+      have eq_succ : P.pts i.succ = P2.pts ⟨i.val + 1 - P1.n, b2⟩ := by
+        change (if h : i.succ.val ≤ P1.n then _ else _) = _
+        have h_cond : ¬(i.succ.val ≤ P1.n) := by have : i.succ.val = i.val + 1 := rfl; omega
+        rw [dif_neg h_cond]; congr 1;
+
+      rw [eq_cast, eq_succ]
+
+      -- Map it back to the exact shifted subinterval j in P2
+      have b3 : i.val - P1.n < P2.n := by omega
+      let j : Fin P2.n := ⟨i.val - P1.n, b3⟩
+
+      have e1 : (⟨i.val - P1.n, b1⟩ : Fin (P2.n + 1)) = j.castSucc := by ext; rfl
+      have e2 : (⟨i.val + 1 - P1.n, b2⟩ : Fin (P2.n + 1)) = j.succ := by ext; dsimp; grind
+      rw [e1, e2]
+
+      exact ht2 j
+
+
+/-- Tagged sums distribute perfectly over concatenated partitions. -/
+lemma taggedSum_concat {a c b : ℝ} (P1 : Partition a c) (P2 : Partition c b)
+    (tags1 : Fin P1.n → ℝ) (tags2 : Fin P2.n → ℝ) (f α : ℝ → ℝ) :
+    taggedSum (concatPartition P1 P2) (concatTags tags1 tags2) f α =
+    taggedSum P1 tags1 f α + taggedSum P2 tags2 f α := by
+  let P := concatPartition P1 P2
+  let tags := concatTags tags1 tags2
+  unfold taggedSum
+
+  let g : ℕ → ℝ := fun i =>
+    if h : i < P.n then
+      f (tags ⟨i, h⟩) * (α (P.pts ⟨i + 1, by omega⟩) - α (P.pts ⟨i, by omega⟩))
+    else 0
+
+  have h_sumP : ∑ i : Fin P.n, f (tags i) * (α (P.pts i.succ) - α (P.pts i.castSucc)) =
+                ∑ i ∈ Finset.range P.n, g i := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      dsimp only [g]
+      rw [dif_pos i.isLt]
+      congr 1
+
+  have hn : P.n = P1.n + P2.n := rfl
+  rw [h_sumP, hn, Finset.sum_range_add]
+
+  have h_left : ∑ i : Fin P1.n, f (tags1 i) * (α (P1.pts i.succ) - α (P1.pts i.castSucc)) =
+                ∑ i ∈ Finset.range P1.n, g i := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      have hiP : i.val < P.n := by change i.val < P1.n + P2.n; have := i.isLt; omega
+      dsimp only [g]
+      rw [dif_pos hiP]
+      have eq_cast : P.pts ⟨i.val, by omega⟩ = P1.pts i.castSucc := by
+        change (if h : i.val ≤ P1.n then _ else _) = _
+        rw [dif_pos (by omega)]; congr 1;
+      have eq_succ : P.pts ⟨i.val + 1, by omega⟩ = P1.pts i.succ := by
+        change (if h : i.val + 1 ≤ P1.n then _ else _) = _
+        rw [dif_pos (by omega)]; congr 1;
+      have h_tag : tags ⟨i.val, hiP⟩ = tags1 i := by
+        unfold tags concatTags
+        dsimp only
+        rw [dif_pos i.isLt]
+
+      rw [h_tag, eq_succ, eq_cast]
+
+  have h_right : ∑ i : Fin P2.n, f (tags2 i) * (α (P2.pts i.succ) - α (P2.pts i.castSucc)) =
+                 ∑ i ∈ Finset.range P2.n, g (P1.n + i) := by
+    apply Finset.sum_bij (fun i _ => i.val)
+    · intro i _; exact Finset.mem_range.mpr i.isLt
+    · intro a1 _ a2 _ h; exact Fin.ext h
+    · intro k hk; exact ⟨⟨k, Finset.mem_range.mp hk⟩, Finset.mem_univ _, rfl⟩
+    · intro i _
+      have hiP : P1.n + i.val < P.n := by change P1.n + i.val < P1.n + P2.n; have := i.isLt; omega
+      dsimp only [g]
+      rw [dif_pos hiP]
+
+      have eq_cast : P.pts ⟨P1.n + i.val, by omega⟩ = P2.pts i.castSucc := by
+        change (if h : P1.n + i.val ≤ P1.n then _ else _) = _
+        by_cases h0 : i.val = 0
+        · rw [dif_pos (by omega)]
+          have e1 : (⟨P1.n + i.val, by omega⟩ : Fin (P1.n + 1)) = Fin.last P1.n := by ext; grind
+          have e2 : i.castSucc = 0 := by ext; exact h0
+          rw [e1, P1.pts_end, e2, P2.pts_start]
+        · rw [dif_neg (by omega)]
+          congr 1; ext; grind
+
+      have eq_succ : P.pts ⟨P1.n + i.val + 1, by omega⟩ = P2.pts i.succ := by
+        change (if h : P1.n + i.val + 1 ≤ P1.n then _ else _) = _
+        rw [dif_neg (by omega)]
+        congr 1; ext; grind
+
+      have h_tag : tags ⟨P1.n + i.val, hiP⟩ = tags2 i := by
+        unfold tags concatTags
+        dsimp only
+        have h_nle : ¬(P1.n + i.val < P1.n) := by omega
+        rw [dif_neg h_nle]
+        congr 1; ext; grind
+
+      rw [h_tag, eq_succ, eq_cast]
+
+  rw [← h_left, ← h_right]
+
+
+-----------------------------------------------------------------------------
+--  The Main Theorem: Integral Splitting
+-----------------------------------------------------------------------------
+
+/--
+Additivity of the Riemann-Stieltjes integral over adjacent intervals.
+If f is integrable on [a, b], and a < c < b, then
+  ∫_a^b f dα = ∫_a^c f dα + ∫_c^b f dα.
+-/
+theorem rsIntegral_split {f α : ℝ → ℝ} {a c b : ℝ}
+    (hac : a < c) (hcb : c < b)
+    (hab : RSIntegrable f α a b) :
+    rsIntegral f α a b hab =
+      rsIntegral f α a c (rsIntegrable_left hac hcb hab) +
+      rsIntegral f α c b (rsIntegrable_right hac hcb hab) := by
+
+  -- 1. Extract the limits
+  have hL := rsIntegral_spec hab
+  have hL1 := rsIntegral_spec (rsIntegrable_left hac hcb hab)
+  have hL2 := rsIntegral_spec (rsIntegrable_right hac hcb hab)
+
+  let L := rsIntegral f α a b hab
+  let L1 := rsIntegral f α a c (rsIntegrable_left hac hcb hab)
+  let L2 := rsIntegral f α c b (rsIntegrable_right hac hcb hab)
+
+  -- 2. Prove equality via an epsilon distance bound
+  apply eq_of_forall_dist_le
+  intro eps heps
+  have heps3 : 0 < eps / 3 := by linarith
+
+  -- Request delta for eps/3 for all three limits
+  rcases hL.2 (eps / 3) heps3 with ⟨δ, hδ, H⟩
+  rcases hL1.2 (eps / 3) heps3 with ⟨δ1, hδ1, H1⟩
+  rcases hL2.2 (eps / 3) heps3 with ⟨δ2, hδ2, H2⟩
+
+  -- Take the tightest delta
+  let δ_star := min δ (min δ1 δ2)
+  have hδ_star : 0 < δ_star := lt_min hδ (lt_min hδ1 hδ2)
+
+  -- Conjure partitions matching the tight delta
+  rcases exists_partition_mesh_lt hac hδ_star with ⟨P1, hP1_mesh⟩
+  rcases exists_partition_mesh_lt hcb hδ_star with ⟨P2, hP2_mesh⟩
+
+  -- Conjure their respective tags (we just use the left endpoints)
+  let tags1 : Fin P1.n → ℝ := fun i => P1.pts i.castSucc
+  have ht1 : tagsInPartition P1 tags1 := leftTagsInPartition P1
+
+  let tags2 : Fin P2.n → ℝ := fun i => P2.pts i.castSucc
+  have ht2 : tagsInPartition P2 tags2 := leftTagsInPartition P2
+
+  -- 3. Construct the perfectly joined partition P
+  let P := concatPartition P1 P2
+  let tags := concatTags tags1 tags2
+  have ht : tagsInPartition P tags := tagsInPartition_concat ht1 ht2
+
+  have hP_mesh : P.mesh < δ := by
+    have h_max : max P1.mesh P2.mesh < δ_star := max_lt hP1_mesh hP2_mesh
+    have h_le : δ_star ≤ δ := min_le_left _ _
+    exact lt_of_le_of_lt (concatPartition_mesh P1 P2) (lt_of_lt_of_le h_max h_le)
+
+  have hP1_mesh_real : P1.mesh < δ1 := lt_of_lt_of_le hP1_mesh (le_trans (min_le_right _ _) (min_le_left _ _))
+  have hP2_mesh_real : P2.mesh < δ2 := lt_of_lt_of_le hP2_mesh (le_trans (min_le_right _ _) (min_le_right _ _))
+
+  -- 4. Evaluate the bounds
+  have h_val := H P tags ht hP_mesh
+  have h_val1 := H1 P1 tags1 ht1 hP1_mesh_real
+  have h_val2 := H2 P2 tags2 ht2 hP2_mesh_real
+
+  -- S(P) = S(P1) + S(P2)
+  have h_sum : taggedSum P tags f α = taggedSum P1 tags1 f α + taggedSum P2 tags2 f α :=
+    taggedSum_concat P1 P2 tags1 tags2 f α
+
+  -- 5. A 3-epsilon Triangle Inequality Squeeze
+  have h_decomp : L - (L1 + L2) =
+      -(taggedSum P tags f α - L) + (taggedSum P1 tags1 f α - L1) + (taggedSum P2 tags2 f α - L2) := by
+    rw [h_sum]
+    ring
+
+  -- Pre-prove the triangle inequalities using `abs_add`
+  have h_tri1 : |-(taggedSum P tags f α - L) + (taggedSum P1 tags1 f α - L1) + (taggedSum P2 tags2 f α - L2)| ≤
+      |-(taggedSum P tags f α - L) + (taggedSum P1 tags1 f α - L1)| + |taggedSum P2 tags2 f α - L2| := abs_add_le _ _
+
+  have h_tri2 : |-(taggedSum P tags f α - L) + (taggedSum P1 tags1 f α - L1)| ≤
+      |-(taggedSum P tags f α - L)| + |taggedSum P1 tags1 f α - L1| := abs_add_le _ _
+
+  have h_abs_bound : |L - (L1 + L2)| < eps := by
+    calc |L - (L1 + L2)|
+      _ = |-(taggedSum P tags f α - L) + (taggedSum P1 tags1 f α - L1) + (taggedSum P2 tags2 f α - L2)| := by rw [h_decomp]
+      _ ≤ |-(taggedSum P tags f α - L) + (taggedSum P1 tags1 f α - L1)| + |taggedSum P2 tags2 f α - L2| := h_tri1
+      _ ≤ |-(taggedSum P tags f α - L)| + |taggedSum P1 tags1 f α - L1| + |taggedSum P2 tags2 f α - L2| := by linarith
+      _ = |taggedSum P tags f α - L| + |taggedSum P1 tags1 f α - L1| + |taggedSum P2 tags2 f α - L2| := by rw [abs_neg]
+      _ < eps / 3 + eps / 3 + eps / 3 := by linarith
+      _ = eps := by ring
+
+  -- `dist` on real numbers is definitionally identical to the absolute difference
+  -- We just apply `le_of_lt` to convert `< eps` to `≤ eps`!
+  exact le_of_lt h_abs_bound
 
 
 
-/-- The standard algebraic laws for the finite-interval Riemann--Stieltjes
-integral from Theorem 1.2, stated for the partition-based definition exported
-by `def_1_2`. Item 4 (interval additivity across an interior split point `d`)
-is proved under continuity of the integrator `α` or the integrand `f` at `d`,
-following the certified Darboux/tagged skeleton. -/
-theorem thm_1_2 {f g α : ℝ → ℝ} {c a b : ℝ} :
-    (∀ (hf : RSIntegrable f α a b) (hg : RSIntegrable g α a b),
-      ∃ hfg : RSIntegrable (fun x => f x + g x) α a b,
-        rsIntegral (fun x => f x + g x) α a b hfg =
-          rsIntegral f α a b hf + rsIntegral g α a b hg) ∧
-    (∀ (hf : RSIntegrable f α a b),
-      ∃ hcf : RSIntegrable (fun x => c * f x) α a b,
-        rsIntegral (fun x => c * f x) α a b hcf =
-          c * rsIntegral f α a b hf) ∧
-    (∀ (hf : RSIntegrable f α a b) (hg : RSIntegrable g α a b),
-      (∀ x ∈ Icc a b, f x ≤ g x) →
-        rsIntegral f α a b hf ≤ rsIntegral g α a b hg) ∧
-    (∀ (d : ℝ), a < d → d < b →
-      ∀ (hac : RSIntegrable f α a d) (hcb : RSIntegrable f α d b),
-        (ContinuousAt α d ∨ ContinuousAt f d) →
-        ∃ hab : RSIntegrable f α a b,
-          rsIntegral f α a b hab = rsIntegral f α a d hac + rsIntegral f α d b hcb) := by
-  refine ⟨?_, ?_, ?_, ?_⟩
-  · intro hf hg
-    exact ⟨rsIntegrable_integrand_add hf hg, rsIntegral_integrand_add hf hg⟩
-  · intro hf
-    exact ⟨rsIntegrable_integrand_const_mul (c := c) hf,
-      rsIntegral_integrand_const_mul (c := c) hf⟩
-  · intro hf hg hfg
-    exact rsIntegral_integrand_mono hf hg hfg
-  · intro d had hdb hac hcb hcont
-    exact Thm12Item4.rsIntegral_glue had hdb hac hcb hcont
+end Thm_1_2_4
+
+end Thm_1_2_4

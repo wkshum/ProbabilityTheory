@@ -3,6 +3,7 @@ import ProbabilityTheory.chapter_01.def_1_2
 
 --import ProbabilityTheory.chapter_01.thm_1_1
 import ProbabilityTheory.chapter_01.thm_1_2
+import ProbabilityTheory.chapter_01.thm_1_2_4
 import ProbabilityTheory.chapter_01.thm_1_3
 import ProbabilityTheory.chapter_01.thm_1_4
 import ProbabilityTheory.chapter_01.def_1_3
