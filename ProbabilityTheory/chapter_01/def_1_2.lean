@@ -175,7 +175,7 @@ def rsTaggedCommonLimit (a b : ℝ) (f alpha : ℝ → ℝ) (L : ℝ) : Prop :=
 
 
 
-/--  Package for the Definition 1.2 integral value.
+/-  Package for the Definition 1.2 integral value.
 
 The textbook definition is the Darboux upper/lower common-limit criterion. We call it
 the `source_limit`.
@@ -184,6 +184,79 @@ The same section also introduces another Riemann-Stieltjes sum S(P, f, alpha),
 called `tagged_limit`.
 
 A *witness* of RS integral is the common `value` of the Darboux limit and tagged limit.
+-/
+
+/-
+  # Design choice for structure `RSIntegralWitness`
+
+  The field
+
+      tagged_limit : rsTaggedCommonLimit a b f alpha value
+
+  is logically redundant under our current hypotheses.  Indeed, since
+  `SourceHypotheses` assumes that `alpha` is monotone increasing on `[a,b]`,
+  every Stieltjes increment
+
+      alpha xᵢ₊₁ - alpha xᵢ
+
+  is nonnegative.  Therefore every tagged sum is squeezed between the lower and
+  upper Darboux--Stieltjes sums over the same partition:
+
+      lowerSum P f alpha ≤ taggedSum P tags f alpha ≤ upperSum P f alpha.
+
+  Consequently, if the upper and lower sums converge to the same limit, then the
+  tagged sums also converge to that same limit:
+
+      rsUpperLowerCommonLimit a b f alpha L →
+      rsTaggedCommonLimit a b f alpha L.
+
+  Thus, in principle, `RSIntegralWitness` could store only the upper/lower
+  common-limit field and derive the tagged formulation as a theorem.
+
+  Nevertheless, we deliberately keep the tagged limit as part of the witness.
+  The reason is practical rather than logical.  In later arguments it is often
+  more convenient to access the tagged-sum formulation directly, without first
+  invoking the conversion theorem from upper/lower sums.  This is especially
+  useful in proofs where the integral is naturally characterized by arbitrary
+  tagged sums rather than by Darboux upper and lower sums.
+
+  Examples include:
+
+  * uniqueness of the Riemann-Stieltjes integral value, where one compares two
+    candidate limits by evaluating the same tagged sums with sufficiently small
+    mesh;
+
+  * arguments based on tagged sums and pointwise choices of tags, such as
+    applications of mean value type results, where the tagged formulation matches
+    the mathematical proof more directly;
+
+  * later estimates where one chooses tags with special properties and compares
+    the resulting tagged sums to the integral.
+
+  Therefore the structure records both viewpoints:
+
+      source_limit : rsUpperLowerCommonLimit a b f alpha value
+      tagged_limit : rsTaggedCommonLimit a b f alpha value
+
+  even though the second one follows from the first.  This makes the witness a
+  convenient interface for both Darboux-style and tagged-sum-style arguments.
+
+
+  The reverse direction
+
+      rsTaggedCommonLimit a b f alpha L →  rsUpperLowerCommonLimit a b f alpha L
+
+  should also hold under the present hypotheses, because
+  the tagged condition quantifies over all choices of tags, and upper/lower sums
+  can be approximated by tags chosen near the local suprema/infima.  However,
+  that proof requires additional ε-approximation lemmas for `sSup` and `sInf`,
+  finite choice of near-extremizing tags, and several estimates comparing the
+  resulting tagged sums with the Darboux sums.
+
+  Since the reverse implication is not needed in the subsequent logical
+  development, we omit it.  The forward direction is sufficient for our purposes:
+  it allows every witness of the upper/lower common limit to provide the tagged
+  formulation as well.
 -/
 structure RSIntegralWitness (f alpha : ℝ → ℝ) (a b : ℝ) where
   value : ℝ
@@ -221,6 +294,14 @@ theorem rsIntegral_source_and_tagged_spec {f alpha : ℝ → ℝ} {a b : ℝ}
     rsUpperLowerCommonLimit a b f alpha (rsIntegral f alpha a b h) ∧
       rsTaggedCommonLimit a b f alpha (rsIntegral f alpha a b h) :=
   ⟨rsIntegral_source_spec h, rsIntegral_spec h⟩
+
+
+
+
+
+
+
+
 
 
 /-- # Definition 1.2 Riemann-Stieltjes integrable function

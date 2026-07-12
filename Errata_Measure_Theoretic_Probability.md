@@ -2,11 +2,11 @@
 
 ## Chapter 1 
 
-- p.9. Change the definition of Riemann-Stieltjes integral to a more restrictive one, by requireing that the upper sum $U(P,f,\alpha)$, the lower sum $L(P,f,\alpha)$, and the tagged sum $S(P,f,\alpha)$ all converge to the same limit. That is take the equality
+- p.9. In the definition of RS integrabiltiy, the meaning of "the upper sum and lower sum converge to the same limit" means that there exists a real number L, such that for any epsilon > 0, there exists delta > 0, so that for all partition P of [a,b] with mesh less than delta, we have |upperSum P f alpha - L| < epsilon and |lowerSum P f alpha - L| < epsilon. See the definition `UpperLowerCommonLimit` in the file [def_1_2.lean](https://github.com/wkshum/ProbabilityTheory/blob/main/ProbabilityTheory/chapter_01/def_1_2.lean). With this mesh-based definition, we can prove this condition implies 
 
-\lim L(P,f,\alpha) = lim S(P,f,\alpha) = lim U(P,f,\alpha)
+ lim L(P,f,\alpha) = lim S(P,f,\alpha) = lim U(P,f,\alpha)
 
-as the definition of RS integrable. In practical scenario, we will not encounter any example in which the above three limits are not equal. However, in theory, it is possible that the upper sum and lower sum converge and converge to the same value, but the limit of S(P,f,\alpha)$ does not exist. See  [this question in stackexchange.com](https://math.stackexchange.com/questions/1186536/difference-between-riemann-stieltjes-and-darboux-stieltjes-integral).
+However, in some book RS integrability is defined as the supremum over all lower sum is equal to the infimum over all upper sum. Then, it is possible that the upper sum and lower sum converge to a common limit, but the limit of S(P,f,\alpha)$ does not exist. See  [this question in stackexchange.com](https://math.stackexchange.com/questions/1186536/difference-between-riemann-stieltjes-and-darboux-stieltjes-integral).
 
 - p.10. Theorem 1.2, part 4. The assumptions of the statement is not correct. Revise the assumptions to: Suppose $f$ is RS integrable with respect to $\alpha$ on the interval $[a,b]$. Then $f$ is RS integrable with respect to $\alpha$ on sub-intervals $[a,c]$ and $[c,b]$, and the equality in the theorem holds.
 

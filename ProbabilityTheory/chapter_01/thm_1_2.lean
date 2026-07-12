@@ -958,11 +958,240 @@ theorem taggedCommonLimit_mono_core {a b : ℝ} {f g alpha : ℝ → ℝ} {Lf Lg
   linarith
 
 
+/--
+For a tag chosen inside the `i`-th subinterval, the lower step is bounded above
+by the tagged value.
+
+Mathematically:
+
+`inf { f x | x ∈ [xᵢ, xᵢ₊₁] } ≤ f(tᵢ)`
+
+provided `tᵢ ∈ [xᵢ, xᵢ₊₁]`.
+-/
+lemma lowerStep_le_tag {a b : ℝ} {f : ℝ → ℝ}
+    (P : Partition a b) (i : Fin P.n)
+    (hfBelow : BddBelow (f '' Set.Icc a b))
+    {x : ℝ} (hx : x ∈ Partition.subinterval P i) :
+    lowerStep P f i ≤ f x := by
+  have hcellBelow : BddBelow (f '' Partition.subinterval P i) :=
+    BddBelow.mono
+      (Set.image_mono (subinterval_subset_Icc_core P))
+      hfBelow
+  unfold lowerStep
+  exact csInf_le hcellBelow ⟨x, hx, rfl⟩
+
+
+/-
+  ### Connection between lower sum, upper sum and tagged sum
+-/
+
+/--
+For a fixed partition, every lower Riemann--Stieltjes sum is bounded above by
+every tagged Riemann--Stieltjes sum whose tags are chosen in the corresponding
+subintervals.
+
+This is the finite-sum comparison
+
+`L(P,f,α) ≤ S(P,tags,f,α)`.
+
+The proof is pointwise on each subinterval:
+
+* `lowerStep P f i ≤ f (tags i)`;
+* `α(xᵢ₊₁) - α(xᵢ) ≥ 0`;
+* hence the corresponding products are ordered;
+* summing preserves the inequality.
+-/
+lemma lowerSum_le_taggedSum {a b : ℝ} {f alpha : ℝ → ℝ}
+    (hs : SourceHypotheses a b f alpha)
+    (P : Partition a b)
+    (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) :
+    lowerSum P f alpha ≤ taggedSum P tags f alpha := by
+  rcases hs with ⟨hab, hfAbove, hfBelow, hmono⟩
+
+  unfold lowerSum taggedSum
+
+  refine Finset.sum_le_sum ?_
+  intro i _hi
+
+  have hstep :
+      lowerStep P f i ≤ f (tags i) :=
+    lowerStep_le_tag P i hfBelow (htags i)
+
+  have hinc :
+      0 ≤ alpha (P.pts i.succ) - alpha (P.pts i.castSucc) :=
+    partition_increment_nonneg_of_source_core P
+      ⟨hab, hfAbove, hfBelow, hmono⟩
+
+  exact mul_le_mul_of_nonneg_right hstep hinc
+
+/--
+For a tag chosen inside the `i`-th subinterval, the tagged value is bounded above
+by the upper step.
+
+Mathematically:
+
+`f(tᵢ) ≤ sup { f x | x ∈ [xᵢ, xᵢ₊₁] }`
+
+provided `tᵢ ∈ [xᵢ, xᵢ₊₁]`.
+-/
+lemma tag_le_upperStep {a b : ℝ} {f : ℝ → ℝ}
+    (P : Partition a b) (i : Fin P.n)
+    (hfAbove : BddAbove (f '' Set.Icc a b))
+    {x : ℝ} (hx : x ∈ Partition.subinterval P i) :
+    f x ≤ upperStep P f i := by
+  have hcellAbove : BddAbove (f '' Partition.subinterval P i) :=
+    BddAbove.mono
+      (Set.image_mono (subinterval_subset_Icc_core P))
+      hfAbove
+  unfold upperStep
+  exact le_csSup hcellAbove ⟨x, hx, rfl⟩
+
+
+/--
+For a fixed partition, every tagged Riemann--Stieltjes sum is bounded above by
+the corresponding upper Riemann--Stieltjes sum, provided the tags are chosen in
+the corresponding subintervals.
+
+This is the finite-sum comparison
+
+`S(P,tags,f,α) ≤ U(P,f,α)`.
+
+The proof is pointwise on each subinterval:
+
+* `f (tags i) ≤ upperStep P f i`;
+* `α(xᵢ₊₁) - α(xᵢ) ≥ 0`;
+* hence the corresponding products are ordered;
+* summing preserves the inequality.
+-/
+lemma taggedSum_le_upperSum {a b : ℝ} {f alpha : ℝ → ℝ}
+    (hs : SourceHypotheses a b f alpha)
+    (P : Partition a b)
+    (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) :
+    taggedSum P tags f alpha ≤ upperSum P f alpha := by
+  rcases hs with ⟨hab, hfAbove, hfBelow, hmono⟩
+
+  unfold taggedSum upperSum
+
+  refine Finset.sum_le_sum ?_
+  intro i _hi
+
+  have hstep :
+      f (tags i) ≤ upperStep P f i :=
+    tag_le_upperStep P i hfAbove (htags i)
+
+  have hinc :
+      0 ≤ alpha (P.pts i.succ) - alpha (P.pts i.castSucc) :=
+    partition_increment_nonneg_of_source_core P
+      ⟨hab, hfAbove, hfBelow, hmono⟩
+
+  exact mul_le_mul_of_nonneg_right hstep hinc
+
 end DarbouxRS
 
 
+/--
+A lower Riemann--Stieltjes sum is bounded above by any tagged sum over the same
+partition, provided the tags are chosen in the corresponding subintervals.
+-/
+theorem lowerSum_le_taggedSum {a b : ℝ} {f alpha : ℝ → ℝ}
+    (hs : SourceHypotheses a b f alpha)
+    (P : Partition a b)
+    (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) :
+    lowerSum P f alpha ≤ taggedSum P tags f alpha :=
+  DarbouxRS.lowerSum_le_taggedSum hs P tags htags
+
+/--
+A tagged Riemann--Stieltjes sum is bounded above by the upper sum over the same
+partition, provided the tags are chosen in the corresponding subintervals.
+-/
+theorem taggedSum_le_upperSum {a b : ℝ} {f alpha : ℝ → ℝ}
+    (hs : SourceHypotheses a b f alpha)
+    (P : Partition a b)
+    (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) :
+    taggedSum P tags f alpha ≤ upperSum P f alpha :=
+  DarbouxRS.taggedSum_le_upperSum hs P tags htags
 
 
+/--
+If the upper and lower Riemann--Stieltjes sums have the same fine-partition
+limit `L`, then every tagged Riemann--Stieltjes sum also converges to `L`.
+
+The proof is a squeeze argument:
+
+`lowerSum P f α ≤ taggedSum P tags f α ≤ upperSum P f α`.
+
+Since both lower and upper sums are within `eps` of `L` for sufficiently small
+mesh, the tagged sum is also within `eps` of `L`.
+-/
+theorem rsTaggedCommonLimit_of_rsUpperLowerCommonLimit
+    {a b : ℝ} {f alpha : ℝ → ℝ} {L : ℝ}
+    (h : rsUpperLowerCommonLimit a b f alpha L) :
+    rsTaggedCommonLimit a b f alpha L := by
+  -- Unfold the exported aliases.
+  unfold rsUpperLowerCommonLimit at h
+  unfold rsTaggedCommonLimit
+
+  rcases h with ⟨hs, hlim⟩
+
+  refine ⟨hs, ?_⟩
+
+  intro eps heps
+
+  rcases hlim eps heps with ⟨δ, hδ, Hδ⟩
+
+  refine ⟨δ, hδ, ?_⟩
+
+  intro P tags htags hmesh
+
+  have hP :
+      |upperSum P f alpha - L| < eps ∧
+      |lowerSum P f alpha - L| < eps :=
+    Hδ P hmesh
+
+  have h_lower :
+      lowerSum P f alpha ≤ taggedSum P tags f alpha :=
+    DarbouxRS.lowerSum_le_taggedSum hs P tags htags
+
+  have h_upper :
+      taggedSum P tags f alpha ≤ upperSum P f alpha :=
+    DarbouxRS.taggedSum_le_upperSum hs P tags htags
+
+  have h_upper_abs :
+      |upperSum P f alpha - L| < eps :=
+    hP.1
+
+  have h_lower_abs :
+      |lowerSum P f alpha - L| < eps :=
+    hP.2
+
+  apply abs_lt.mpr
+  constructor
+  · -- lower side: `-eps < taggedSum P tags f alpha - L`
+    have h_lower_left :
+        -eps < lowerSum P f alpha - L :=
+      (abs_lt.mp h_lower_abs).1
+    linarith
+
+  · -- upper side: `taggedSum P tags f alpha - L < eps`
+    have h_upper_right :
+        upperSum P f alpha - L < eps :=
+      (abs_lt.mp h_upper_abs).2
+    linarith
+
+
+/- # Design choice for structure RSIntegralWitness
+  If upper and lower limit converge to the same limit, then
+  the tagged limit also converges to the same limit.
+-/
+theorem taggedCommonLimit_of_upperLowerCommonLimit
+    {a b : ℝ} {f alpha : ℝ → ℝ} {L : ℝ}
+    (h : UpperLowerCommonLimit a b f alpha L) :
+    TaggedCommonLimit a b f alpha L := by
+  exact rsTaggedCommonLimit_of_rsUpperLowerCommonLimit h
 
 
 
