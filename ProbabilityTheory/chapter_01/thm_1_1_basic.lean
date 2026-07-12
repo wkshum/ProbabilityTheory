@@ -1,19 +1,22 @@
-import Mathlib
 import ProbabilityTheory.chapter_01.def_1_2
+import ProbabilityTheory.chapter_01.thm_1_2
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 
 open Finset BigOperators
 open MeasureTheory Set Topology
 
+noncomputable section
+
 /-- The discontinuity set of `f` inside the interval `[a, b]`. -/
 def discontinuitySetOn (f : ℝ → ℝ) (a b : ℝ) : Set ℝ :=
-  {x | x ∈ Icc a b ∧ ¬ ContinuousAt f x}
+  {x | x ∈ Icc a b ∧ ¬ ContinuousWithinAt f (Icc a b) x}
 
 namespace Thm11SourceRoute
 
 /-- Outside the finite bad set, membership in the interval gives continuity of `f`. -/
-lemma continuousAt_of_not_mem_discontinuitySetOn {f : ℝ → ℝ} {a b x : ℝ}
+lemma continuousWithinAt_of_not_mem_discontinuitySetOn {f : ℝ → ℝ} {a b x : ℝ}
     (hxI : x ∈ Icc a b) (hx : x ∉ discontinuitySetOn f a b) :
-    ContinuousAt f x := by
+    ContinuousWithinAt f (Icc a b) x := by
   by_contra hcont
   exact hx ⟨hxI, hcont⟩
 
@@ -41,7 +44,9 @@ lemma discontinuitySetOn_const_refl_empty (c a : ℝ) :
   constructor
   · intro hx
     exact hx.2 (by
-      simpa using (continuousAt_const : ContinuousAt (fun _ : ℝ => c) x))
+      simpa using
+        (continuousAt_const.continuousWithinAt :
+          ContinuousWithinAt (fun _ : ℝ => c) (Icc a a) x))
   · intro hx
     cases hx
 
@@ -100,7 +105,7 @@ lemma sourceHypotheses_of_strict_task_hypotheses {f α : ℝ → ℝ} {a b : ℝ
     (hα_mono : Monotone α)
     (hAbove : BddAbove (f '' Icc a b))
     (hBelow : BddBelow (f '' Icc a b)) :
-    DarbouxRS.SourceHypotheses a b f α := by
+    SourceHypotheses a b f α := by
   refine ⟨hab, hAbove, hBelow, ?_⟩
   intro x _hx y _hy hxy
   exact hα_mono hxy
@@ -108,8 +113,9 @@ lemma sourceHypotheses_of_strict_task_hypotheses {f α : ℝ → ℝ} {a b : ℝ
 /-- If `f` is continuous at every interval point, the task-local discontinuity
 set is empty. This isolates the genuinely finite-bad-set part of Theorem 1.1
 from the easier continuous-on-the-interval special case. -/
-lemma discontinuitySetOn_empty_of_forall_continuousAt {f : ℝ → ℝ} {a b : ℝ}
-    (hf : ∀ x, x ∈ Icc a b → ContinuousAt f x) :
+lemma discontinuitySetOn_empty_of_forall_continuousWithinAt
+    {f : ℝ → ℝ} {a b : ℝ}
+    (hf : ∀ x, x ∈ Icc a b → ContinuousWithinAt f (Icc a b) x) :
     discontinuitySetOn f a b = ∅ := by
   ext x
   constructor
@@ -120,10 +126,11 @@ lemma discontinuitySetOn_empty_of_forall_continuousAt {f : ℝ → ℝ} {a b : �
 
 /-- Continuous functions on the interval satisfy the finite-discontinuity
 hypothesis used by the strict version of the theorem. -/
-lemma finite_discontinuitySetOn_of_forall_continuousAt {f : ℝ → ℝ} {a b : ℝ}
-    (hf : ∀ x, x ∈ Icc a b → ContinuousAt f x) :
+lemma finite_discontinuitySetOn_of_forall_continuousWithinAt
+    {f : ℝ → ℝ} {a b : ℝ}
+    (hf : ∀ x, x ∈ Icc a b → ContinuousWithinAt f (Icc a b) x) :
     (discontinuitySetOn f a b).Finite := by
-  rw [discontinuitySetOn_empty_of_forall_continuousAt hf]
+  rw [discontinuitySetOn_empty_of_forall_continuousWithinAt hf]
   exact Set.finite_empty
 
 /-- The Definition 1.2 `RSIntegrable` witness is equivalent to producing one
@@ -144,62 +151,110 @@ theorem common_limits_iff_rsIntegrable {f α : ℝ → ℝ} {a b : ℝ} :
     rcases h with ⟨w⟩
     exact ⟨w.value, w.source_limit, w.tagged_limit⟩
 
+private lemma upperSum_eq_of_integrator_eqOn_Icc
+    {f α β : ℝ → ℝ} {a b : ℝ}
+    (hEq : Set.EqOn β α (Icc a b)) (P : Partition a b) :
+    upperSum P f β = upperSum P f α := by
+  unfold upperSum
+  refine Finset.sum_congr rfl ?_
+  intro i _hi
+  rw [hEq (DarbouxRS.partition_pts_mem_Icc_core P (i := i.succ)),
+    hEq (DarbouxRS.partition_pts_mem_Icc_core P (i := i.castSucc))]
+
+private lemma lowerSum_eq_of_integrator_eqOn_Icc
+    {f α β : ℝ → ℝ} {a b : ℝ}
+    (hEq : Set.EqOn β α (Icc a b)) (P : Partition a b) :
+    lowerSum P f β = lowerSum P f α := by
+  unfold lowerSum
+  refine Finset.sum_congr rfl ?_
+  intro i _hi
+  rw [hEq (DarbouxRS.partition_pts_mem_Icc_core P (i := i.succ)),
+    hEq (DarbouxRS.partition_pts_mem_Icc_core P (i := i.castSucc))]
+
+private lemma taggedSum_eq_of_integrator_eqOn_Icc
+    {f α β : ℝ → ℝ} {a b : ℝ}
+    (hEq : Set.EqOn β α (Icc a b)) (P : Partition a b)
+    (tags : Fin P.n → ℝ) :
+    taggedSum P tags f β = taggedSum P tags f α := by
+  unfold taggedSum
+  refine Finset.sum_congr rfl ?_
+  intro i _hi
+  rw [hEq (DarbouxRS.partition_pts_mem_Icc_core P (i := i.succ)),
+    hEq (DarbouxRS.partition_pts_mem_Icc_core P (i := i.castSucc))]
+
+private lemma sourceHypotheses_of_integrator_eqOn_Icc
+    {f α β : ℝ → ℝ} {a b : ℝ}
+    (hEq : Set.EqOn β α (Icc a b))
+    (hs : SourceHypotheses a b f β) :
+    SourceHypotheses a b f α := by
+  rcases hs with ⟨hab, hAbove, hBelow, hβmono⟩
+  refine ⟨hab, hAbove, hBelow, ?_⟩
+  intro x hx y hy hxy
+  rw [← hEq hx, ← hEq hy]
+  exact hβmono hx hy hxy
+
+private lemma upperLowerCommonLimit_of_integrator_eqOn_Icc
+    {f α β : ℝ → ℝ} {a b L : ℝ}
+    (hEq : Set.EqOn β α (Icc a b))
+    (hβ : rsUpperLowerCommonLimit a b f β L) :
+    rsUpperLowerCommonLimit a b f α L := by
+  rcases hβ with ⟨hs, hlim⟩
+  refine ⟨sourceHypotheses_of_integrator_eqOn_Icc hEq hs, ?_⟩
+  intro eps heps
+  rcases hlim eps heps with ⟨delta, hdelta, Hdelta⟩
+  refine ⟨delta, hdelta, ?_⟩
+  intro P hmesh
+  have hP := Hdelta P hmesh
+  rw [← upperSum_eq_of_integrator_eqOn_Icc hEq P,
+    ← lowerSum_eq_of_integrator_eqOn_Icc hEq P]
+  exact hP
+
+private lemma taggedCommonLimit_of_integrator_eqOn_Icc
+    {f α β : ℝ → ℝ} {a b L : ℝ}
+    (hEq : Set.EqOn β α (Icc a b))
+    (hβ : rsTaggedCommonLimit a b f β L) :
+    rsTaggedCommonLimit a b f α L := by
+  rcases hβ with ⟨hs, hlim⟩
+  refine ⟨sourceHypotheses_of_integrator_eqOn_Icc hEq hs, ?_⟩
+  intro eps heps
+  rcases hlim eps heps with ⟨delta, hdelta, Hdelta⟩
+  refine ⟨delta, hdelta, ?_⟩
+  intro P tags htags hmesh
+  have hP := Hdelta P tags htags hmesh
+  rw [← taggedSum_eq_of_integrator_eqOn_Icc hEq P tags]
+  exact hP
+
+/-- Integrators equal on the integration interval transport an existing
+Riemann--Stieltjes integrability witness in the indicated direction. -/
+theorem _root_.RSIntegrable.congr_integrator_on_Icc
+    {f α β : ℝ → ℝ} {a b : ℝ}
+    (hEq : Set.EqOn β α (Icc a b)) :
+    RSIntegrable f β a b → RSIntegrable f α a b := by
+  rintro ⟨w⟩
+  refine ⟨{
+    value := w.value
+    source_limit := upperLowerCommonLimit_of_integrator_eqOn_Icc hEq w.source_limit
+    tagged_limit := taggedCommonLimit_of_integrator_eqOn_Icc hEq w.tagged_limit
+  }⟩
+
 /-- For a fixed partition, the tagged sum lies between the lower and upper
 Darboux sums. This removes the tagged-limit half of the strict route once the
 upper/lower common limit has been produced. -/
 lemma taggedSum_between_lower_upper {f α : ℝ → ℝ} {a b : ℝ}
-    (hs : DarbouxRS.SourceHypotheses a b f α)
-    (P : DarbouxRS.Partition a b) (tags : ℕ → ℝ)
-    (htags : DarbouxRS.tagsInPartition P tags) :
-    DarbouxRS.lowerSum P f α ≤ DarbouxRS.taggedSum P tags f α ∧
-      DarbouxRS.taggedSum P tags f α ≤ DarbouxRS.upperSum P f α := by
-  rcases hs with ⟨hab, hAbove, hBelow, hmono⟩
-  constructor
-  · unfold DarbouxRS.lowerSum DarbouxRS.taggedSum
-    refine Finset.sum_le_sum ?_
-    intro i hi_mem
-    have hi : i < P.n := Finset.mem_range.mp hi_mem
-    have hcellBelow : BddBelow (f '' DarbouxRS.subinterval P i) :=
-      BddBelow.mono (Set.image_mono (DarbouxRS.subinterval_subset_Icc_core P hi)) hBelow
-    have hlow_le_tag : DarbouxRS.lowerStep P f i ≤ f (tags i) := by
-      unfold DarbouxRS.lowerStep
-      exact csInf_le hcellBelow ⟨tags i, htags i hi, rfl⟩
-    have hinc_nonneg : 0 ≤ α (P.pts (i + 1)) - α (P.pts i) :=
-      DarbouxRS.partition_increment_nonneg_of_source_core P
-        ⟨hab, hAbove, hBelow, hmono⟩ hi
-    exact mul_le_mul_of_nonneg_right hlow_le_tag hinc_nonneg
-  · unfold DarbouxRS.taggedSum DarbouxRS.upperSum
-    refine Finset.sum_le_sum ?_
-    intro i hi_mem
-    have hi : i < P.n := Finset.mem_range.mp hi_mem
-    have hcellAbove : BddAbove (f '' DarbouxRS.subinterval P i) :=
-      BddAbove.mono (Set.image_mono (DarbouxRS.subinterval_subset_Icc_core P hi)) hAbove
-    have htag_le_up : f (tags i) ≤ DarbouxRS.upperStep P f i := by
-      unfold DarbouxRS.upperStep
-      exact le_csSup hcellAbove ⟨tags i, htags i hi, rfl⟩
-    have hinc_nonneg : 0 ≤ α (P.pts (i + 1)) - α (P.pts i) :=
-      DarbouxRS.partition_increment_nonneg_of_source_core P
-        ⟨hab, hAbove, hBelow, hmono⟩ hi
-    exact mul_le_mul_of_nonneg_right htag_le_up hinc_nonneg
+    (hs : SourceHypotheses a b f α)
+    (P : Partition a b) (tags : Fin P.n → ℝ)
+    (htags : tagsInPartition P tags) :
+    lowerSum P f α ≤ taggedSum P tags f α ∧
+      taggedSum P tags f α ≤ upperSum P f α :=
+  ⟨lowerSum_le_taggedSum hs P tags htags,
+    taggedSum_le_upperSum hs P tags htags⟩
 
 /-- The tagged common limit is forced by the upper/lower common limit, with the
 same value `L`, by squeezing every tagged sum between the lower and upper sums. -/
 theorem taggedCommonLimit_of_upperLowerCommonLimit {f α : ℝ → ℝ} {a b L : ℝ}
     (hUL : rsUpperLowerCommonLimit a b f α L) :
-    rsTaggedCommonLimit a b f α L := by
-  rcases hUL with ⟨hs, hlim⟩
-  refine ⟨hs, ?_⟩
-  intro eps heps
-  rcases hlim eps heps with ⟨δ, hδ, Hδ⟩
-  refine ⟨δ, hδ, ?_⟩
-  intro P tags htags hmesh
-  have hP := Hδ P hmesh
-  have hbetween := taggedSum_between_lower_upper hs P tags htags
-  have hlower_abs := abs_lt.mp hP.2
-  have hupper_abs := abs_lt.mp hP.1
-  refine abs_lt.mpr ⟨?_, ?_⟩
-  · linarith
-  · linarith
+    rsTaggedCommonLimit a b f α L :=
+  rsTaggedCommonLimit_of_rsUpperLowerCommonLimit hUL
 
 /-- It is enough for the strict finite-discontinuity route to construct the
 upper/lower common Darboux limit; the tagged common limit then follows by

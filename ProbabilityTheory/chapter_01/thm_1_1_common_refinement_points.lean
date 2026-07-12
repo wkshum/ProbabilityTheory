@@ -1,4 +1,5 @@
 import ProbabilityTheory.chapter_01.thm_1_1_darboux_gap
+import Mathlib.Data.List.GetD
 
 open Finset BigOperators
 open MeasureTheory Set Topology
@@ -14,105 +15,103 @@ this from an explicit point-set refinement construction is the remaining
 partition-combinatorial step. -/
 def DarbouxCommonRefinementSandwich
     (a b : ℝ) (f α : ℝ → ℝ) : Prop :=
-  ∀ δ > 0, ∀ P Q : DarbouxRS.Partition a b,
+  ∀ δ > 0, ∀ P Q : Partition a b,
     P.mesh < δ →
     Q.mesh < δ →
-      ∃ R : DarbouxRS.Partition a b,
+      ∃ R : Partition a b,
         R.mesh < δ ∧
-        DarbouxRS.lowerSum P f α ≤ DarbouxRS.lowerSum R f α ∧
-        DarbouxRS.lowerSum Q f α ≤ DarbouxRS.lowerSum R f α ∧
-        DarbouxRS.upperSum R f α ≤ DarbouxRS.upperSum P f α ∧
-        DarbouxRS.upperSum R f α ≤ DarbouxRS.upperSum Q f α
+        lowerSum P f α ≤ lowerSum R f α ∧
+        lowerSum Q f α ≤ lowerSum R f α ∧
+        upperSum R f α ≤ upperSum P f α ∧
+        upperSum R f α ≤ upperSum Q f α
 
 /-- The finite set of nodes belonging to a partition. It includes both
 endpoints because the range is `0, ..., P.n`. -/
 noncomputable def partitionPointSet {a b : ℝ}
-    (P : DarbouxRS.Partition a b) : Finset ℝ :=
-  (Finset.range (P.n + 1)).image P.pts
+    (P : Partition a b) : Finset ℝ :=
+  (Finset.univ : Finset (Fin (P.n + 1))).image P.pts
 
 lemma mem_partitionPointSet_iff {a b x : ℝ}
-    (P : DarbouxRS.Partition a b) :
-    x ∈ partitionPointSet P ↔ ∃ i, i ≤ P.n ∧ P.pts i = x := by
+    (P : Partition a b) :
+    x ∈ partitionPointSet P ↔ ∃ i : Fin (P.n + 1), P.pts i = x := by
   simp [partitionPointSet, eq_comm]
 
 lemma partitionPointSet_left_mem {a b : ℝ}
-    (P : DarbouxRS.Partition a b) :
+    (P : Partition a b) :
     a ∈ partitionPointSet P := by
   rw [mem_partitionPointSet_iff]
-  exact ⟨0, Nat.zero_le P.n, P.pts_start⟩
+  exact ⟨0, P.pts_start⟩
 
 lemma partitionPointSet_right_mem {a b : ℝ}
-    (P : DarbouxRS.Partition a b) :
+    (P : Partition a b) :
     b ∈ partitionPointSet P := by
   rw [mem_partitionPointSet_iff]
-  exact ⟨P.n, le_rfl, P.pts_end⟩
+  exact ⟨Fin.last P.n, P.pts_end⟩
 
 lemma partitionPointSet_subset_Icc {a b x : ℝ}
-    (P : DarbouxRS.Partition a b)
+    (P : Partition a b)
     (hx : x ∈ partitionPointSet P) :
     x ∈ Icc a b := by
-  rcases (mem_partitionPointSet_iff P).1 hx with ⟨i, hi, rfl⟩
-  exact DarbouxRS.partition_pts_mem_Icc_core P hi
+  rcases (mem_partitionPointSet_iff P).1 hx with ⟨i, rfl⟩
+  exact DarbouxRS.partition_pts_mem_Icc_core P
 
 /-- The concrete finite set underlying the common refinement of two
 partitions: the union of both node sets. -/
 noncomputable def commonRefinementPointSet {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) : Finset ℝ :=
+    (P Q : Partition a b) : Finset ℝ :=
   partitionPointSet P ∪ partitionPointSet Q
 
 /-- The concrete sorted node list for the common refinement. The later
-partition-construction step turns this list into a `DarbouxRS.Partition`. -/
+partition-construction step turns this list into a `Partition`. -/
 noncomputable def commonRefinementPointList {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) : List ℝ :=
+    (P Q : Partition a b) : List ℝ :=
   (commonRefinementPointSet P Q).sort (fun x y : ℝ => x ≤ y)
 
 lemma mem_commonRefinementPointList_iff {a b x : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     x ∈ commonRefinementPointList P Q ↔
       x ∈ partitionPointSet P ∨ x ∈ partitionPointSet Q := by
   unfold commonRefinementPointList commonRefinementPointSet
   rw [Finset.mem_sort, Finset.mem_union]
 
 lemma commonRefinementPointList_sorted {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     (commonRefinementPointList P Q).Pairwise (fun x y : ℝ => x ≤ y) := by
   unfold commonRefinementPointList
   exact Finset.pairwise_sort (commonRefinementPointSet P Q) (fun x y : ℝ => x ≤ y)
 
 lemma commonRefinementPointList_nodup {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     (commonRefinementPointList P Q).Nodup := by
   unfold commonRefinementPointList
   exact Finset.sort_nodup (commonRefinementPointSet P Q) (fun x y : ℝ => x ≤ y)
 
 lemma commonRefinementPointList_left_mem {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     a ∈ commonRefinementPointList P Q := by
   rw [mem_commonRefinementPointList_iff]
   exact Or.inl (partitionPointSet_left_mem P)
 
 lemma commonRefinementPointList_right_mem {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     b ∈ commonRefinementPointList P Q := by
   rw [mem_commonRefinementPointList_iff]
   exact Or.inl (partitionPointSet_right_mem P)
 
 lemma commonRefinementPointList_covers_left {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) {i : ℕ}
-    (hi : i ≤ P.n) :
+    (P Q : Partition a b) (i : Fin (P.n + 1)) :
     P.pts i ∈ commonRefinementPointList P Q := by
   rw [mem_commonRefinementPointList_iff]
-  exact Or.inl ((mem_partitionPointSet_iff P).2 ⟨i, hi, rfl⟩)
+  exact Or.inl ((mem_partitionPointSet_iff P).2 ⟨i, rfl⟩)
 
 lemma commonRefinementPointList_covers_right {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) {i : ℕ}
-    (hi : i ≤ Q.n) :
+    (P Q : Partition a b) (i : Fin (Q.n + 1)) :
     Q.pts i ∈ commonRefinementPointList P Q := by
   rw [mem_commonRefinementPointList_iff]
-  exact Or.inr ((mem_partitionPointSet_iff Q).2 ⟨i, hi, rfl⟩)
+  exact Or.inr ((mem_partitionPointSet_iff Q).2 ⟨i, rfl⟩)
 
 lemma commonRefinementPointList_subset_Icc {a b x : ℝ}
-    (P Q : DarbouxRS.Partition a b)
+    (P Q : Partition a b)
     (hx : x ∈ commonRefinementPointList P Q) :
     x ∈ Icc a b := by
   rcases (mem_commonRefinementPointList_iff P Q).1 hx with hxP | hxQ
@@ -136,7 +135,7 @@ lemma sorted_nodup_adjacent_lt {l : List ℝ}
   exact lt_of_le_of_ne hle hne
 
 lemma commonRefinementPointList_adjacent_lt {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) {i : ℕ}
+    (P Q : Partition a b) {i : ℕ}
     (hi : i + 1 < (commonRefinementPointList P Q).length) :
     (commonRefinementPointList P Q)[i] <
       (commonRefinementPointList P Q)[i + 1] :=
@@ -155,7 +154,7 @@ lemma sorted_nodup_adjacent_getD_lt {l : List ℝ} {fallback : ℝ}
   exact sorted_nodup_adjacent_lt hsorted hnodup hi
 
 lemma commonRefinementPointList_adjacent_getD_lt {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) {i : ℕ}
+    (P Q : Partition a b) {i : ℕ}
     (hi : i + 1 < (commonRefinementPointList P Q).length) :
     (commonRefinementPointList P Q).getD i b <
       (commonRefinementPointList P Q).getD (i + 1) b :=
@@ -163,15 +162,14 @@ lemma commonRefinementPointList_adjacent_getD_lt {a b : ℝ}
     (commonRefinementPointList_sorted P Q)
     (commonRefinementPointList_nodup P Q) hi
 
-lemma partition_endpoints_lt {a b : ℝ} (P : DarbouxRS.Partition a b) :
+lemma partition_endpoints_lt {a b : ℝ} (P : Partition a b) :
     a < b := by
-  have h01 : P.pts 0 < P.pts (0 + 1) := P.strict_mono 0 P.hn
-  have h1n : P.pts 1 ≤ P.pts P.n :=
-    DarbouxRS.partition_pts_monotone_core P (Nat.succ_le_of_lt P.hn) le_rfl
+  have hzero_last : (0 : Fin (P.n + 1)) < Fin.last P.n := by
+    change 0 < P.n
+    exact P.hn
   calc
     a = P.pts 0 := P.pts_start.symm
-    _ < P.pts 1 := by simpa using h01
-    _ ≤ P.pts P.n := h1n
+    _ < P.pts (Fin.last P.n) := P.strict_mono hzero_last
     _ = b := P.pts_end
 
 lemma list_length_two_le_of_nodup_mem_ne {l : List ℝ} {a b : ℝ}
@@ -236,7 +234,7 @@ lemma sorted_list_getD_last_eq_right {l : List ℝ} {a b : ℝ}
   exact hEq
 
 lemma commonRefinementPointList_length_two_le {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     2 ≤ (commonRefinementPointList P Q).length := by
   refine list_length_two_le_of_nodup_mem_ne
     (commonRefinementPointList_nodup P Q)
@@ -245,7 +243,7 @@ lemma commonRefinementPointList_length_two_le {a b : ℝ}
   exact ne_of_lt (partition_endpoints_lt P)
 
 lemma commonRefinementPointList_getD_zero {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     (commonRefinementPointList P Q).getD 0 b = a := by
   exact sorted_list_getD_zero_eq_left
     (commonRefinementPointList_sorted P Q)
@@ -253,7 +251,7 @@ lemma commonRefinementPointList_getD_zero {a b : ℝ}
     (fun hx => commonRefinementPointList_subset_Icc P Q hx)
 
 lemma commonRefinementPointList_getD_last {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     (commonRefinementPointList P Q).getD
       ((commonRefinementPointList P Q).length - 1) a = b := by
   exact sorted_list_getD_last_eq_right
@@ -262,12 +260,12 @@ lemma commonRefinementPointList_getD_last {a b : ℝ}
     (fun hx => commonRefinementPointList_subset_Icc P Q hx)
 
 lemma partition_length_le_mesh_core {a b : ℝ}
-    (P : DarbouxRS.Partition a b) {i : ℕ} (hi : i < P.n) :
-    P.pts (i + 1) - P.pts i ≤ P.mesh := by
-  unfold DarbouxRS.Partition.mesh
+    (P : Partition a b) (i : Fin P.n) :
+    P.pts i.succ - P.pts i.castSucc ≤ P.mesh := by
+  unfold Partition.mesh
   exact Finset.le_sup'
-    (fun j => P.pts (j + 1) - P.pts j)
-    (Finset.mem_range.mpr hi)
+    (fun j : Fin P.n => P.pts j.succ - P.pts j.castSucc)
+    (Finset.mem_univ i)
 
 lemma sorted_nodup_adjacent_no_mem_between {l : List ℝ} {fallback z : ℝ}
     (hsorted : l.Pairwise (fun x y : ℝ => x ≤ y))
@@ -309,11 +307,12 @@ lemma list_getD_mem_of_lt {l : List ℝ} {fallback : ℝ} {i : ℕ}
   exact List.getElem_mem (l := l) (n := i) hi
 
 lemma commonRefinementPointList_adjacent_right_le_next_of_left_partition
-    {a b : ℝ} (P Q : DarbouxRS.Partition a b) {i k : ℕ}
+    {a b : ℝ} (P Q : Partition a b) {i : ℕ} (k : Fin (P.n + 1))
     (hi : i + 1 < (commonRefinementPointList P Q).length)
-    (hk : k ≤ P.n)
     (hleft : (commonRefinementPointList P Q).getD i b = P.pts k) :
-    (commonRefinementPointList P Q).getD (i + 1) b ≤ P.pts (k + 1) := by
+    ∃ j : Fin P.n,
+      P.pts j.castSucc = P.pts k ∧
+        (commonRefinementPointList P Q).getD (i + 1) b ≤ P.pts j.succ := by
   let l := commonRefinementPointList P Q
   have hsorted : l.Pairwise (fun x y : ℝ => x ≤ y) :=
     commonRefinementPointList_sorted P Q
@@ -324,29 +323,35 @@ lemma commonRefinementPointList_adjacent_right_le_next_of_left_partition
     list_getD_mem_of_lt (l := l) (fallback := b) hi
   have hright_le_b : l.getD (i + 1) b ≤ b :=
     (commonRefinementPointList_subset_Icc P Q hright_mem).2
-  have hklt : k < P.n := by
+  have hklt : k.val < P.n := by
     by_contra hnot
-    have hk_eq : k = P.n := le_antisymm hk (le_of_not_gt hnot)
+    have hk_val : k.val = P.n := by omega
+    have hk_eq : k = Fin.last P.n := Fin.ext hk_val
     have hleft_b : l.getD i b = b := by
       rw [hleft, hk_eq, P.pts_end]
     linarith
+  let j : Fin P.n := ⟨k.val, hklt⟩
+  have hjk : P.pts j.castSucc = P.pts k := by
+    congr 1
+  refine ⟨j, hjk, ?_⟩
   by_contra hnot
-  have hnext_lt_right : P.pts (k + 1) < l.getD (i + 1) b :=
+  have hnext_lt_right : P.pts j.succ < l.getD (i + 1) b :=
     lt_of_not_ge hnot
-  have hleft_lt_next : l.getD i b < P.pts (k + 1) := by
-    rw [hleft]
-    exact P.strict_mono k hklt
-  have hnext_mem : P.pts (k + 1) ∈ l :=
-    commonRefinementPointList_covers_left P Q (Nat.succ_le_of_lt hklt)
+  have hleft_lt_next : l.getD i b < P.pts j.succ := by
+    rw [hleft, ← hjk]
+    exact P.strict_mono Fin.castSucc_lt_succ
+  have hnext_mem : P.pts j.succ ∈ l :=
+    commonRefinementPointList_covers_left P Q j.succ
   exact (sorted_nodup_adjacent_no_mem_between hsorted hi hnext_mem)
     ⟨hleft_lt_next, hnext_lt_right⟩
 
 lemma commonRefinementPointList_adjacent_right_le_next_of_right_partition
-    {a b : ℝ} (P Q : DarbouxRS.Partition a b) {i k : ℕ}
+    {a b : ℝ} (P Q : Partition a b) {i : ℕ} (k : Fin (Q.n + 1))
     (hi : i + 1 < (commonRefinementPointList P Q).length)
-    (hk : k ≤ Q.n)
     (hleft : (commonRefinementPointList P Q).getD i b = Q.pts k) :
-    (commonRefinementPointList P Q).getD (i + 1) b ≤ Q.pts (k + 1) := by
+    ∃ j : Fin Q.n,
+      Q.pts j.castSucc = Q.pts k ∧
+        (commonRefinementPointList P Q).getD (i + 1) b ≤ Q.pts j.succ := by
   let l := commonRefinementPointList P Q
   have hsorted : l.Pairwise (fun x y : ℝ => x ≤ y) :=
     commonRefinementPointList_sorted P Q
@@ -356,85 +361,60 @@ lemma commonRefinementPointList_adjacent_right_le_next_of_right_partition
     list_getD_mem_of_lt (l := l) (fallback := b) hi
   have hright_le_b : l.getD (i + 1) b ≤ b :=
     (commonRefinementPointList_subset_Icc P Q hright_mem).2
-  have hklt : k < Q.n := by
+  have hklt : k.val < Q.n := by
     by_contra hnot
-    have hk_eq : k = Q.n := le_antisymm hk (le_of_not_gt hnot)
+    have hk_val : k.val = Q.n := by omega
+    have hk_eq : k = Fin.last Q.n := Fin.ext hk_val
     have hleft_b : l.getD i b = b := by
       rw [hleft, hk_eq, Q.pts_end]
     linarith
+  let j : Fin Q.n := ⟨k.val, hklt⟩
+  have hjk : Q.pts j.castSucc = Q.pts k := by
+    congr 1
+  refine ⟨j, hjk, ?_⟩
   by_contra hnot
-  have hnext_lt_right : Q.pts (k + 1) < l.getD (i + 1) b :=
+  have hnext_lt_right : Q.pts j.succ < l.getD (i + 1) b :=
     lt_of_not_ge hnot
-  have hleft_lt_next : l.getD i b < Q.pts (k + 1) := by
-    rw [hleft]
-    exact Q.strict_mono k hklt
-  have hnext_mem : Q.pts (k + 1) ∈ l :=
-    commonRefinementPointList_covers_right P Q (Nat.succ_le_of_lt hklt)
+  have hleft_lt_next : l.getD i b < Q.pts j.succ := by
+    rw [hleft, ← hjk]
+    exact Q.strict_mono Fin.castSucc_lt_succ
+  have hnext_mem : Q.pts j.succ ∈ l :=
+    commonRefinementPointList_covers_right P Q j.succ
   exact (sorted_nodup_adjacent_no_mem_between hsorted hi hnext_mem)
     ⟨hleft_lt_next, hnext_lt_right⟩
 
 lemma commonRefinementPointList_adjacent_length_le_mesh_of_left_partition
-    {a b : ℝ} (P Q : DarbouxRS.Partition a b) {i k : ℕ}
+    {a b : ℝ} (P Q : Partition a b) {i : ℕ} (k : Fin (P.n + 1))
     (hi : i + 1 < (commonRefinementPointList P Q).length)
-    (hk : k ≤ P.n)
     (hleft : (commonRefinementPointList P Q).getD i b = P.pts k) :
     (commonRefinementPointList P Q).getD (i + 1) b -
         (commonRefinementPointList P Q).getD i b ≤ P.mesh := by
   let l := commonRefinementPointList P Q
-  have hright_le_next :
-      l.getD (i + 1) b ≤ P.pts (k + 1) :=
-    commonRefinementPointList_adjacent_right_le_next_of_left_partition
-      P Q hi hk hleft
-  have hgap : l.getD i b < l.getD (i + 1) b :=
-    commonRefinementPointList_adjacent_getD_lt P Q hi
-  have hright_mem : l.getD (i + 1) b ∈ l :=
-    list_getD_mem_of_lt (l := l) (fallback := b) hi
-  have hright_le_b : l.getD (i + 1) b ≤ b :=
-    (commonRefinementPointList_subset_Icc P Q hright_mem).2
-  have hklt : k < P.n := by
-    by_contra hnot
-    have hk_eq : k = P.n := le_antisymm hk (le_of_not_gt hnot)
-    have hleft_b : l.getD i b = b := by
-      rw [hleft, hk_eq, P.pts_end]
-    linarith
+  rcases commonRefinementPointList_adjacent_right_le_next_of_left_partition
+      P Q k hi hleft with ⟨j, hjk, hright_le_next⟩
   have hlen_le :
-      l.getD (i + 1) b - l.getD i b ≤ P.pts (k + 1) - P.pts k := by
-    rw [hleft]
+      l.getD (i + 1) b - l.getD i b ≤ P.pts j.succ - P.pts j.castSucc := by
+    rw [hleft, ← hjk]
     linarith
-  exact le_trans hlen_le (partition_length_le_mesh_core P hklt)
+  exact le_trans hlen_le (partition_length_le_mesh_core P j)
 
 lemma commonRefinementPointList_adjacent_length_le_mesh_of_right_partition
-    {a b : ℝ} (P Q : DarbouxRS.Partition a b) {i k : ℕ}
+    {a b : ℝ} (P Q : Partition a b) {i : ℕ} (k : Fin (Q.n + 1))
     (hi : i + 1 < (commonRefinementPointList P Q).length)
-    (hk : k ≤ Q.n)
     (hleft : (commonRefinementPointList P Q).getD i b = Q.pts k) :
     (commonRefinementPointList P Q).getD (i + 1) b -
         (commonRefinementPointList P Q).getD i b ≤ Q.mesh := by
   let l := commonRefinementPointList P Q
-  have hright_le_next :
-      l.getD (i + 1) b ≤ Q.pts (k + 1) :=
-    commonRefinementPointList_adjacent_right_le_next_of_right_partition
-      P Q hi hk hleft
-  have hgap : l.getD i b < l.getD (i + 1) b :=
-    commonRefinementPointList_adjacent_getD_lt P Q hi
-  have hright_mem : l.getD (i + 1) b ∈ l :=
-    list_getD_mem_of_lt (l := l) (fallback := b) hi
-  have hright_le_b : l.getD (i + 1) b ≤ b :=
-    (commonRefinementPointList_subset_Icc P Q hright_mem).2
-  have hklt : k < Q.n := by
-    by_contra hnot
-    have hk_eq : k = Q.n := le_antisymm hk (le_of_not_gt hnot)
-    have hleft_b : l.getD i b = b := by
-      rw [hleft, hk_eq, Q.pts_end]
-    linarith
+  rcases commonRefinementPointList_adjacent_right_le_next_of_right_partition
+      P Q k hi hleft with ⟨j, hjk, hright_le_next⟩
   have hlen_le :
-      l.getD (i + 1) b - l.getD i b ≤ Q.pts (k + 1) - Q.pts k := by
-    rw [hleft]
+      l.getD (i + 1) b - l.getD i b ≤ Q.pts j.succ - Q.pts j.castSucc := by
+    rw [hleft, ← hjk]
     linarith
-  exact le_trans hlen_le (partition_length_le_mesh_core Q hklt)
+  exact le_trans hlen_le (partition_length_le_mesh_core Q j)
 
 lemma commonRefinementPointList_adjacent_length_lt_delta {a b δ : ℝ}
-    (P Q : DarbouxRS.Partition a b)
+    (P Q : Partition a b)
     (hPmesh : P.mesh < δ) (hQmesh : Q.mesh < δ)
     {i : ℕ}
     (hi : i + 1 < (commonRefinementPointList P Q).length) :
@@ -445,15 +425,15 @@ lemma commonRefinementPointList_adjacent_length_lt_delta {a b δ : ℝ}
   have hleft_mem : l.getD i b ∈ l :=
     list_getD_mem_of_lt (l := l) (fallback := b) hi0
   rcases (mem_commonRefinementPointList_iff P Q).1 hleft_mem with hP | hQ
-  · rcases (mem_partitionPointSet_iff P).1 hP with ⟨k, hk, hkleft⟩
+  · rcases (mem_partitionPointSet_iff P).1 hP with ⟨k, hkleft⟩
     have hle :=
       commonRefinementPointList_adjacent_length_le_mesh_of_left_partition
-        P Q hi hk hkleft.symm
+        P Q k hi hkleft.symm
     exact lt_of_le_of_lt hle hPmesh
-  · rcases (mem_partitionPointSet_iff Q).1 hQ with ⟨k, hk, hkleft⟩
+  · rcases (mem_partitionPointSet_iff Q).1 hQ with ⟨k, hkleft⟩
     have hle :=
       commonRefinementPointList_adjacent_length_le_mesh_of_right_partition
-        P Q hi hk hkleft.symm
+        P Q k hi hkleft.symm
     exact lt_of_le_of_lt hle hQmesh
 
 /-- Build a textbook partition from an endpoint list whose consecutive entries
@@ -464,21 +444,23 @@ noncomputable def partitionOfStrictEndpointList {a b : ℝ} (l : List ℝ)
     (hstart : l.getD 0 b = a)
     (hend : l.getD (l.length - 1) a = b)
     (hstrict : ∀ {i : ℕ}, i + 1 < l.length → l.getD i b < l.getD (i + 1) b) :
-    DarbouxRS.Partition a b where
+    Partition a b where
   n := l.length - 1
   hn := by omega
-  pts := fun i => l.getD i b
+  pts := fun i => l.getD i.val b
   pts_start := by
     exact hstart
   pts_end := by
     have hlast : l.length - 1 < l.length := by omega
+    change l.getD (l.length - 1) b = b
     rw [List.getD_eq_getElem l b hlast]
     rw [List.getD_eq_getElem l a hlast] at hend
     exact hend
   strict_mono := by
-    intro i hi
-    have hi_succ : i + 1 < l.length := by omega
-    exact hstrict hi_succ
+    refine Fin.strictMono_iff_lt_succ.mpr ?_
+    intro i
+    have hi_succ : i.val + 1 < l.length := by omega
+    simpa using hstrict hi_succ
 
 lemma partitionOfStrictEndpointList_mem_node {a b : ℝ} (l : List ℝ)
     (hlen : 2 ≤ l.length)
@@ -486,34 +468,35 @@ lemma partitionOfStrictEndpointList_mem_node {a b : ℝ} (l : List ℝ)
     (hend : l.getD (l.length - 1) a = b)
     (hstrict : ∀ {i : ℕ}, i + 1 < l.length → l.getD i b < l.getD (i + 1) b)
     {x : ℝ} (hx : x ∈ l) :
-    ∃ j, j ≤ (partitionOfStrictEndpointList l hlen hstart hend hstrict).n ∧
+    ∃ j : Fin ((partitionOfStrictEndpointList l hlen hstart hend hstrict).n + 1),
       (partitionOfStrictEndpointList l hlen hstart hend hstrict).pts j = x := by
   rcases List.mem_iff_getElem.1 hx with ⟨j, hj, hjx⟩
-  refine ⟨j, ?_, ?_⟩
-  · simp [partitionOfStrictEndpointList]
+  have hjFin : j < (partitionOfStrictEndpointList l hlen hstart hend hstrict).n + 1 := by
+    simp [partitionOfStrictEndpointList]
     omega
-  · change l.getD j b = x
-    rw [List.getD_eq_getElem l b hj]
-    exact hjx
+  refine ⟨⟨j, hjFin⟩, ?_⟩
+  change l.getD j b = x
+  rw [List.getD_eq_getElem l b hj]
+  exact hjx
 
 /-- Data already obtained from the concrete union-of-nodes construction. This
 is the point-list form of a common refinement; converting this sorted list into
-a `DarbouxRS.Partition` is the next combinatorial layer. -/
+a `Partition` is the next combinatorial layer. -/
 structure DarbouxCommonRefinementPointList {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) where
+    (P Q : Partition a b) where
   points : List ℝ
   sorted : points.Pairwise (fun x y : ℝ => x ≤ y)
   nodup : points.Nodup
   left_mem : a ∈ points
   right_mem : b ∈ points
-  covers_left : ∀ {i : ℕ}, i ≤ P.n → P.pts i ∈ points
-  covers_right : ∀ {i : ℕ}, i ≤ Q.n → Q.pts i ∈ points
+  covers_left : ∀ i : Fin (P.n + 1), P.pts i ∈ points
+  covers_right : ∀ i : Fin (Q.n + 1), Q.pts i ∈ points
   subset_Icc : ∀ {x : ℝ}, x ∈ points → x ∈ Icc a b
 
 /-- Concrete common-refinement node list obtained by sorting the union of the
 two finite partition-node sets. -/
 noncomputable def concreteCommonRefinementPointList {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
+    (P Q : Partition a b) :
     DarbouxCommonRefinementPointList P Q where
   points := commonRefinementPointList P Q
   sorted := commonRefinementPointList_sorted P Q
@@ -521,11 +504,11 @@ noncomputable def concreteCommonRefinementPointList {a b : ℝ}
   left_mem := commonRefinementPointList_left_mem P Q
   right_mem := commonRefinementPointList_right_mem P Q
   covers_left := by
-    intro i hi
-    exact commonRefinementPointList_covers_left P Q hi
+    intro i
+    exact commonRefinementPointList_covers_left P Q i
   covers_right := by
-    intro i hi
-    exact commonRefinementPointList_covers_right P Q hi
+    intro i
+    exact commonRefinementPointList_covers_right P Q i
   subset_Icc := by
     intro x hx
     exact commonRefinementPointList_subset_Icc P Q hx
@@ -534,8 +517,8 @@ noncomputable def concreteCommonRefinementPointList {a b : ℝ}
 the two node sets. Its endpoints and strictness are discharged by the sorted
 nodup endpoint-list helpers above. -/
 noncomputable def concreteCommonRefinementPartition {a b : ℝ}
-    (P Q : DarbouxRS.Partition a b) :
-    DarbouxRS.Partition a b :=
+    (P Q : Partition a b) :
+    Partition a b :=
   partitionOfStrictEndpointList
     (commonRefinementPointList P Q)
     (commonRefinementPointList_length_two_le P Q)
