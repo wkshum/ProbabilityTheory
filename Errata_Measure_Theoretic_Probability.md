@@ -2,13 +2,13 @@
 
 ## Chapter 1 
 
-- p.9. In the definition of RS integrabiltiy, the meaning of "the upper sum and lower sum converge to the same limit" means that there exists a real number L, such that for any epsilon > 0, there exists delta > 0, so that for all partition P of [a,b] with mesh less than delta, we have |upperSum P f alpha - L| < epsilon and |lowerSum P f alpha - L| < epsilon. See the definition `UpperLowerCommonLimit` in the file [def_1_2.lean](https://github.com/wkshum/ProbabilityTheory/blob/main/ProbabilityTheory/chapter_01/def_1_2.lean). With this mesh-based definition, we can prove this condition implies 
+- p.9. In the definition of RS integrabiltiy, the criterion "the upper sum and lower sum converge to the same limit" means that we can find a real number L, such that for any epsilon > 0, there exists delta > 0 so that for all partition P of [a,b] with mesh less than delta, we have |U(P, f, \alpha) - L| < epsilon and |L(P, f, \alpha) - L| < epsilon. See the definition `UpperLowerCommonLimit` in the file [def_1_2.lean](https://github.com/wkshum/ProbabilityTheory/blob/main/ProbabilityTheory/chapter_01/def_1_2.lean). With this mesh-based definition (together with the assumption that \alpha is monotonic), we can derive
 
  lim L(P,f,\alpha) = lim S(P,f,\alpha) = lim U(P,f,\alpha)
 
-However, in some book RS integrability is defined as the supremum over all lower sum is equal to the infimum over all upper sum. Then, it is possible that the upper sum and lower sum converge to a common limit, but the limit of S(P,f,\alpha)$ does not exist. See  [this question in stackexchange.com](https://math.stackexchange.com/questions/1186536/difference-between-riemann-stieltjes-and-darboux-stieltjes-integral).
+However, in some books, such as Rudin's "Principles of Mathematical Analysis," RS integrability is defined as the condition "the supremum over all lower sum is equal to the infimum over all upper sum". Then, it is possible that the upper sum and lower sum converge to a common limit, but the limit of S(P,f,\alpha)$ does not exist. See  [this question in stackexchange.com](https://math.stackexchange.com/questions/1186536/difference-between-riemann-stieltjes-and-darboux-stieltjes-integral).
 
-- p.10. Theorem 1.2, part 4. The assumptions of the statement is not correct. Revise the assumptions to: Suppose $f$ is RS integrable with respect to $\alpha$ on the interval $[a,b]$. Then $f$ is RS integrable with respect to $\alpha$ on sub-intervals $[a,c]$ and $[c,b]$, and the equality in the theorem holds.
+- p.10. Theorem 1.2, part 4. The assumptions of the statement is not correct. Revise the assumptions to: Suppose $f$ is RS integrable with respect to $\alpha$ on the interval $[a,b]$. Then $f$ is RS integrable with respect to $\alpha$ on sub-intervals $[a,c]$ and $[c,b]$, and the equality in the theorem holds. This property is verified in the file [thm_1_2_4.lean](https://github.com/wkshum/ProbabilityTheory/blob/main/ProbabilityTheory/chapter_01/thm_1_2_4.lean).
 
 - p.11. Theorem 1.4. On the right-hand side of the equation, the function $f(\alpha)$ should be $f(x)$.
 
