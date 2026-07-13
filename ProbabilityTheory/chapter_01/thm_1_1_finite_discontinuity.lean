@@ -69,7 +69,7 @@ theorem strictFiniteDiscontinuityOscillationCriterion_proof :
     ⟨δ, hδ_pos, hδ_good, hδ_half⟩
   refine ⟨δ, hδ_pos, ?_⟩
   intro P hmesh
-  have hs : DarbouxRS.SourceHypotheses a b f α :=
+  have hs : SourceHypotheses a b f α :=
     sourceHypotheses_of_strict_task_hypotheses hab hα_mono hAbove hBelow
   have hmesh_good : P.mesh < δgood := lt_of_lt_of_le hmesh hδ_good
   have hmesh_bad : ∀ c : ℝ, c ∈ S → P.mesh < rho c / 2 := by
@@ -78,33 +78,14 @@ theorem strictFiniteDiscontinuityOscillationCriterion_proof :
   have hcI : ∀ c : ℝ, c ∈ S → c ∈ Icc a b := by
     intro c hc
     exact ((hS c).1 hc).1
-  have hsplit :
-      partitionOscillation P f α ≤
-        eta * (α b - α a) +
-          2 * C *
-            (∑ i ∈ badCellIndices P S rhoHalf,
-              (α (P.pts (i + 1)) - α (P.pts i))) :=
-    partitionOscillation_le_goodRemainder_badCell_split
+  have hcombined :=
+    partitionOscillation_le_goodRemainder_badIntervals
       (f := f) (α := α) (a := a) (b := b)
       (C := C) (eta := eta) (δgood := δgood)
-      (S := S) (rho := rhoHalf)
-      hs P hC_bound (le_of_lt heta_pos) hgood_step hmesh_good
-  have hbad_inc_le :
-      (∑ i ∈ badCellIndices P S rhoHalf,
-          (α (P.pts (i + 1)) - α (P.pts i))) ≤
-        ∑ c ∈ S, (α (c + rho c) - α (c - rho c)) := by
-    dsimp [rhoHalf]
-    exact partition_increment_sum_badCellIndices_half_radius_le_bad_intervals_canonical
-      hα_mono P S rho hcI hrho_pos hmesh_bad hsep
+      (S := S) (rho := rho)
+      hs hα_mono P hC_bound (le_of_lt hC_pos) (le_of_lt heta_pos)
+      hgood_step hmesh_good hcI hrho_pos hmesh_bad hsep
   have htwoC_pos : 0 < 2 * C := by positivity
-  have htwoC_nonneg : 0 ≤ 2 * C := le_of_lt htwoC_pos
-  have hbad_term_le :
-      2 * C *
-          (∑ i ∈ badCellIndices P S rhoHalf,
-            (α (P.pts (i + 1)) - α (P.pts i))) ≤
-        2 * C *
-          (∑ c ∈ S, (α (c + rho c) - α (c - rho c))) :=
-    mul_le_mul_of_nonneg_left hbad_inc_le htwoC_nonneg
   have hbadQuota_eq : (2 * C) * badQuota = eps / 2 := by
     dsimp [badQuota]
     field_simp [ne_of_gt hC_pos]
@@ -115,25 +96,8 @@ theorem strictFiniteDiscontinuityOscillationCriterion_proof :
     have hmul_lt :=
       mul_lt_mul_of_pos_left hbad_sum_lt htwoC_pos
     linarith
-  have hsplitA :
-      partitionOscillation P f α ≤
-        eta * A +
-          2 * C *
-            (∑ i ∈ badCellIndices P S rhoHalf,
-              (α (P.pts (i + 1)) - α (P.pts i))) := by
-    simpa [A] using hsplit
-  calc
-    partitionOscillation P f α
-        ≤ eta * A +
-          2 * C *
-            (∑ i ∈ badCellIndices P S rhoHalf,
-              (α (P.pts (i + 1)) - α (P.pts i))) := hsplitA
-    _ ≤ eta * A +
-          2 * C *
-            (∑ c ∈ S, (α (c + rho c) - α (c - rho c))) := by
-          linarith
-    _ < eps := by
-          linarith
+  dsimp [A] at hgood_term_lt
+  linarith [hcombined]
 
 
 end Thm11SourceRoute

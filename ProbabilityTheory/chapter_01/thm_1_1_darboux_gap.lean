@@ -13,7 +13,7 @@ namespace Thm11SourceRoute
 Stieltjes-weighted oscillation of `f` small. -/
 def ClosedIntervalDarbouxOscillationSmall
     (a b : ℝ) (f α : ℝ → ℝ) : Prop :=
-  ∀ eps > 0, ∃ δ > 0, ∀ P : DarbouxRS.Partition a b,
+  ∀ eps > 0, ∃ δ > 0, ∀ P : Partition a b,
     P.mesh < δ → partitionOscillation P f α < eps
 
 /-- The same fine-partition smallness condition expressed directly as a
@@ -21,9 +21,9 @@ Darboux upper-minus-lower gap. This is generic Darboux infrastructure, not a
 finite-discontinuity-specific estimate. -/
 def ClosedIntervalDarbouxGapSmall
     (a b : ℝ) (f α : ℝ → ℝ) : Prop :=
-  ∀ eps > 0, ∃ δ > 0, ∀ P : DarbouxRS.Partition a b,
+  ∀ eps > 0, ∃ δ > 0, ∀ P : Partition a b,
     P.mesh < δ →
-      DarbouxRS.upperSum P f α - DarbouxRS.lowerSum P f α < eps
+      upperSum P f α - lowerSum P f α < eps
 
 /-- A purely Darboux fine-Cauchy condition for upper and lower sums. It is
 stronger than the same-partition gap estimate, but it is the exact
@@ -31,21 +31,21 @@ cross-partition comparison needed to extract a common limit from completeness
 of `ℝ`. -/
 def ClosedIntervalDarbouxFineCauchy
     (a b : ℝ) (f α : ℝ → ℝ) : Prop :=
-  ∀ eps > 0, ∃ δ > 0, ∀ P Q : DarbouxRS.Partition a b,
+  ∀ eps > 0, ∃ δ > 0, ∀ P Q : Partition a b,
     P.mesh < δ →
     Q.mesh < δ →
-      |DarbouxRS.upperSum P f α - DarbouxRS.upperSum Q f α| < eps ∧
-      |DarbouxRS.lowerSum P f α - DarbouxRS.lowerSum Q f α| < eps ∧
-      |DarbouxRS.upperSum P f α - DarbouxRS.lowerSum Q f α| < eps ∧
-      |DarbouxRS.lowerSum P f α - DarbouxRS.upperSum Q f α| < eps
+      |upperSum P f α - upperSum Q f α| < eps ∧
+      |lowerSum P f α - lowerSum Q f α| < eps ∧
+      |upperSum P f α - lowerSum Q f α| < eps ∧
+      |lowerSum P f α - upperSum Q f α| < eps
 
 /-- Under source hypotheses, the upper-minus-lower Darboux gap is
 nonnegative for every partition. -/
 lemma upperSum_sub_lowerSum_nonneg_of_source {f α : ℝ → ℝ} {a b : ℝ}
-    (hs : DarbouxRS.SourceHypotheses a b f α)
-    (P : DarbouxRS.Partition a b) :
-    0 ≤ DarbouxRS.upperSum P f α - DarbouxRS.lowerSum P f α := by
-  have hle : DarbouxRS.lowerSum P f α ≤ DarbouxRS.upperSum P f α :=
+    (hs : SourceHypotheses a b f α)
+    (P : Partition a b) :
+    0 ≤ upperSum P f α - lowerSum P f α := by
+  have hle : lowerSum P f α ≤ upperSum P f α :=
     DarbouxRS.lowerSum_le_upperSum_core P hs
   exact sub_nonneg.mpr hle
 
@@ -53,11 +53,11 @@ lemma upperSum_sub_lowerSum_nonneg_of_source {f α : ℝ → ℝ} {a b : ℝ}
 the same-partition upper/lower gap estimate. -/
 theorem closedIntervalDarbouxAbsGapSmall_of_gapSmall
     {f α : ℝ → ℝ} {a b : ℝ}
-    (hs : DarbouxRS.SourceHypotheses a b f α)
+    (hs : SourceHypotheses a b f α)
     (hgap : ClosedIntervalDarbouxGapSmall a b f α) :
-    ∀ eps > 0, ∃ δ > 0, ∀ P : DarbouxRS.Partition a b,
+    ∀ eps > 0, ∃ δ > 0, ∀ P : Partition a b,
       P.mesh < δ →
-        |DarbouxRS.upperSum P f α - DarbouxRS.lowerSum P f α| < eps := by
+        |upperSum P f α - lowerSum P f α| < eps := by
   intro eps heps
   rcases hgap eps heps with ⟨δ, hδ, Hδ⟩
   refine ⟨δ, hδ, ?_⟩

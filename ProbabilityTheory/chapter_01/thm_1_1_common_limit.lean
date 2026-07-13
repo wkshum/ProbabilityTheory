@@ -12,7 +12,7 @@ gap estimate: same-partition small gaps must be upgraded to a fine-Cauchy
 comparison between any two sufficiently fine partitions. -/
 def ClosedIntervalDarbouxFineCauchyFromGap : Prop :=
   ∀ {f α : ℝ → ℝ} {a b : ℝ},
-    DarbouxRS.SourceHypotheses a b f α →
+    SourceHypotheses a b f α →
     ClosedIntervalDarbouxGapSmall a b f α →
     ClosedIntervalDarbouxFineCauchy a b f α
 
@@ -22,7 +22,7 @@ configuration. -/
 theorem closedIntervalDarbouxFineCauchyFromGap_of_commonRefinementSandwich
     (hrefine :
       ∀ {f α : ℝ → ℝ} {a b : ℝ},
-        DarbouxRS.SourceHypotheses a b f α →
+        SourceHypotheses a b f α →
         DarbouxCommonRefinementSandwich a b f α) :
     ClosedIntervalDarbouxFineCauchyFromGap := by
   intro f α a b hs hgap
@@ -39,21 +39,21 @@ reference sequence: any fine-Cauchy Darboux family has a real common
 upper/lower limit. -/
 theorem closedIntervalDarbouxCommonLimit_of_fineCauchy
     {f α : ℝ → ℝ} {a b : ℝ}
-    (hs : DarbouxRS.SourceHypotheses a b f α)
+    (hs : SourceHypotheses a b f α)
     (hfine : ClosedIntervalDarbouxFineCauchy a b f α) :
     ∃ L, rsUpperLowerCommonLimit a b f α L := by
   rcases hs with ⟨hab, hAbove, hBelow, hmono⟩
-  let hs' : DarbouxRS.SourceHypotheses a b f α := ⟨hab, hAbove, hBelow, hmono⟩
-  have hsmall : ∀ n : ℕ, ∃ P : DarbouxRS.Partition a b,
+  let hs' : SourceHypotheses a b f α := ⟨hab, hAbove, hBelow, hmono⟩
+  have hsmall : ∀ n : ℕ, ∃ P : Partition a b,
       P.mesh < (1 : ℝ) / ((n : ℝ) + 1) := by
     intro n
     have hδ : 0 < (1 : ℝ) / ((n : ℝ) + 1) := by positivity
-    exact DarbouxRS.exists_partition_mesh_lt hab hδ
-  let Pseq : ℕ → DarbouxRS.Partition a b := fun n => Classical.choose (hsmall n)
+    exact exists_partition_mesh_lt hab hδ
+  let Pseq : ℕ → Partition a b := fun n => Classical.choose (hsmall n)
   have hPseq : ∀ n : ℕ, (Pseq n).mesh < (1 : ℝ) / ((n : ℝ) + 1) := by
     intro n
     exact Classical.choose_spec (hsmall n)
-  let U : ℕ → ℝ := fun n => DarbouxRS.upperSum (Pseq n) f α
+  let U : ℕ → ℝ := fun n => upperSum (Pseq n) f α
   have hmesh_lt_of_ge :
       ∀ {N n : ℕ} {δ : ℝ}, N ≤ n →
         (1 : ℝ) / ((N : ℝ) + 1) < δ →
@@ -91,7 +91,7 @@ theorem closedIntervalDarbouxCommonLimit_of_fineCauchy
   have hNtend_le : Ntend ≤ N := le_max_left _ _
   have hNmesh_le : Nmesh ≤ N := le_max_right _ _
   have hN_mesh : (Pseq N).mesh < δ := hmesh_lt_of_ge hNmesh_le hNmesh
-  have hN_lim : |DarbouxRS.upperSum (Pseq N) f α - L| < eps / 3 := by
+  have hN_lim : |upperSum (Pseq N) f α - L| < eps / 3 := by
     have hdist := hNtend N hNtend_le
     simpa [U, Real.dist_eq] using hdist
   refine ⟨δ, hδ, ?_⟩
@@ -99,35 +99,35 @@ theorem closedIntervalDarbouxCommonLimit_of_fineCauchy
   have hclose := Hδ P (Pseq N) hPmesh hN_mesh
   constructor
   · have htri :
-        |DarbouxRS.upperSum P f α - L| ≤
-          |DarbouxRS.upperSum P f α - DarbouxRS.upperSum (Pseq N) f α| +
-            |DarbouxRS.upperSum (Pseq N) f α - L| := by
+        |upperSum P f α - L| ≤
+          |upperSum P f α - upperSum (Pseq N) f α| +
+            |upperSum (Pseq N) f α - L| := by
       have hdecomp :
-          DarbouxRS.upperSum P f α - L =
-            (DarbouxRS.upperSum P f α - DarbouxRS.upperSum (Pseq N) f α) +
-              (DarbouxRS.upperSum (Pseq N) f α - L) := by
+          upperSum P f α - L =
+            (upperSum P f α - upperSum (Pseq N) f α) +
+              (upperSum (Pseq N) f α - L) := by
         ring
       rw [hdecomp]
       exact abs_add_le _ _
     have hsum :
-        |DarbouxRS.upperSum P f α - DarbouxRS.upperSum (Pseq N) f α| +
-            |DarbouxRS.upperSum (Pseq N) f α - L| < eps / 3 + eps / 3 :=
+        |upperSum P f α - upperSum (Pseq N) f α| +
+            |upperSum (Pseq N) f α - L| < eps / 3 + eps / 3 :=
       add_lt_add hclose.1 hN_lim
     exact lt_of_le_of_lt htri (lt_trans hsum (by linarith))
   · have htri :
-        |DarbouxRS.lowerSum P f α - L| ≤
-          |DarbouxRS.lowerSum P f α - DarbouxRS.upperSum (Pseq N) f α| +
-            |DarbouxRS.upperSum (Pseq N) f α - L| := by
+        |lowerSum P f α - L| ≤
+          |lowerSum P f α - upperSum (Pseq N) f α| +
+            |upperSum (Pseq N) f α - L| := by
       have hdecomp :
-          DarbouxRS.lowerSum P f α - L =
-            (DarbouxRS.lowerSum P f α - DarbouxRS.upperSum (Pseq N) f α) +
-              (DarbouxRS.upperSum (Pseq N) f α - L) := by
+          lowerSum P f α - L =
+            (lowerSum P f α - upperSum (Pseq N) f α) +
+              (upperSum (Pseq N) f α - L) := by
         ring
       rw [hdecomp]
       exact abs_add_le _ _
     have hsum :
-        |DarbouxRS.lowerSum P f α - DarbouxRS.upperSum (Pseq N) f α| +
-            |DarbouxRS.upperSum (Pseq N) f α - L| < eps / 3 + eps / 3 :=
+        |lowerSum P f α - upperSum (Pseq N) f α| +
+            |upperSum (Pseq N) f α - L| < eps / 3 + eps / 3 :=
       add_lt_add hclose.2.2.2 hN_lim
     exact lt_of_le_of_lt htri (lt_trans hsum (by linarith))
 
@@ -136,7 +136,7 @@ gap yields an actual common upper/lower limit value. This is separated from the
 finite-discontinuity estimate because it is generic Darboux infrastructure. -/
 def ClosedIntervalDarbouxCommonLimitFromOscillation : Prop :=
   ∀ {f α : ℝ → ℝ} {a b : ℝ},
-    DarbouxRS.SourceHypotheses a b f α →
+    SourceHypotheses a b f α →
     ClosedIntervalDarbouxOscillationSmall a b f α →
     ∃ L, rsUpperLowerCommonLimit a b f α L
 
@@ -146,7 +146,7 @@ share a common limit. This is the reusable bridge still missing from the
 current source infrastructure. -/
 def ClosedIntervalDarbouxCommonLimitFromGap : Prop :=
   ∀ {f α : ℝ → ℝ} {a b : ℝ},
-    DarbouxRS.SourceHypotheses a b f α →
+    SourceHypotheses a b f α →
     ClosedIntervalDarbouxGapSmall a b f α →
     ∃ L, rsUpperLowerCommonLimit a b f α L
 
@@ -173,7 +173,7 @@ theorem strict_upperLower_criterion_of_oscillation
     (hosc : StrictFiniteDiscontinuityOscillationCriterion) :
     StrictFiniteDiscontinuityUpperLowerCriterion := by
   intro f α a b hab hα_mono hAbove hBelow hDiscFinite hαCont
-  have hs : DarbouxRS.SourceHypotheses a b f α :=
+  have hs : SourceHypotheses a b f α :=
     sourceHypotheses_of_strict_task_hypotheses hab hα_mono hAbove hBelow
   exact hdarboux hs (hosc hab hα_mono hAbove hBelow hDiscFinite hαCont)
 
