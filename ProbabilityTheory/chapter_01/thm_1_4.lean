@@ -392,13 +392,13 @@ A convenient constructor for the basic source hypotheses of the
 Riemann--Stieltjes integral.
 
 If `a < b`, the integrand `f` is continuous on the compact interval `[a, b]`,
-and the integrator `α` is monotone on all of `ℝ`, then the standing
+and the integrator `α` is monotone on `[a, b]`, then the standing
 `SourceHypotheses a b f α` hold.
 
 The boundedness assumptions for `f` follow from compactness: a continuous
 function on `Set.Icc a b` has compact image, hence its image is both bounded
-above and bounded below.  The monotonicity assumption for `α` is restricted from
-global monotonicity to monotonicity on `[a, b]` by `Monotone.monotoneOn`.
+above and bounded below.  The monotonicity assumption for `α` is supplied
+directly on `[a, b]`.
 
 This lemma is used to package the hypotheses needed for the tagged
 Riemann--Stieltjes limit in the proof of the differentiable-integrator reduction.
@@ -407,12 +407,12 @@ theorem sourceHypotheses_of_continuous_derivative_integrator {f α : ℝ → ℝ
     {a b : ℝ}
     (hab : a < b)
     (hf : ContinuousOn f (Set.Icc a b))
-    (hαmono : Monotone α) :
+    (hαmono : MonotoneOn α (Set.Icc a b)) :
     SourceHypotheses a b f α := by
   refine ⟨hab, ?_, ?_, ?_⟩
   · exact (isCompact_Icc.image_of_continuousOn hf).bddAbove
   · exact (isCompact_Icc.image_of_continuousOn hf).bddBelow
-  · exact hαmono.monotoneOn (Set.Icc a b)
+  · exact hαmono
 
 
 
@@ -1408,7 +1408,7 @@ theorem rsTaggedCommonLimit_derivative_of_identity_tagged_limit
     {f α α' : ℝ → ℝ} {a b L : ℝ}
     (hab : a < b)
     (hf : ContinuousOn f (Set.Icc a b))
-    (hαmono : Monotone α)
+    (hαmono : MonotoneOn α (Set.Icc a b))
     (hαderiv : ∀ x ∈ Set.Icc a b, HasDerivAt α (α' x) x)
     (hα'cont : ContinuousOn α' (Set.Icc a b))
     (hId : rsTaggedCommonLimit a b (fun x => f x * α' x) (fun x => x) L) :
@@ -1480,7 +1480,7 @@ This is the final technical theorem before extracting the equality of integral
 values.  It proves that, if
 
 * `f` is continuous on `[a, b]`,
-* `α` is monotone,
+* `α` is monotone on `[a, b]`,
 * `α` has derivative `α'` on `[a, b]`,
 * `α'` is continuous on `[a, b]`,
 
@@ -1519,7 +1519,7 @@ theorem rsTaggedCommonLimit_integral_deriv
     {f α α' : ℝ → ℝ} {a b : ℝ}
     (hab : a < b)
     (hf : ContinuousOn f (Set.Icc a b))
-    (hαmono : Monotone α)
+    (hαmono : MonotoneOn α (Set.Icc a b))
     (hαderiv : ∀ x ∈ Set.Icc a b, HasDerivAt α (α' x) x)
     (hα'cont : ContinuousOn α' (Set.Icc a b)) :
     rsTaggedCommonLimit a b f α (∫ x in a..b, f x * α' x) := by
@@ -1539,7 +1539,7 @@ interval integral when the integrator has a continuous derivative.
 Assume that
 
 * `f` is continuous on `[a, b]`,
-* `α` is monotone,
+* `α` is monotone on `[a, b]`,
 * `α` has derivative `α'` at every point of `[a, b]`,
 * `α'` is continuous on `[a, b]`,
 * `f` is already known to be Riemann--Stieltjes integrable with respect to `α`.
@@ -1602,7 +1602,7 @@ chosen Riemann--Stieltjes value with the ordinary interval integral.
 theorem thm_1_4 {f α α' : ℝ → ℝ} {a b : ℝ}
     (hab : a ≤ b)
     (hf : ContinuousOn f (Icc a b))
-    (hαmono : Monotone α)
+    (hαmono : MonotoneOn α (Icc a b))
     (hαderiv : ∀ x ∈ Icc a b, HasDerivAt α (α' x) x)
     (hα'cont : ContinuousOn α' (Icc a b))
     (hRS : RSIntegrable f α a b) :

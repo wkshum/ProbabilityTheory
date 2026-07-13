@@ -588,7 +588,7 @@ theorem cdfExpectation_eq_integral_pdf
       (b := b)
       (le_of_lt hab)
       hid_cont
-      hFmono
+      (hFmono.monotoneOn (Set.Icc a b))
       hFderiv
       hpdf_cont
       h_int
@@ -622,7 +622,7 @@ theorem cdfExpectation_integrable_and_eq_integral_pdf
       (b := b)
       (le_of_lt hab)
       hid_cont
-      hFmono
+      (hFmono.monotoneOn (Set.Icc a b))
       hFderiv
       hpdf_cont
       h_int
