@@ -1,9 +1,11 @@
 import ProbabilityTheory.chapter_01.def_1_2
 import ProbabilityTheory.chapter_01.thm_1_2
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 
 open Finset BigOperators
+<<<<<<< HEAD
 open MeasureTheory
+=======
+>>>>>>> 9f9e0899aab75b7bd64d9e5f546a93c80411d6af
 open Set Topology
 
 noncomputable section
