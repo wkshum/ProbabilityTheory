@@ -1,6 +1,11 @@
-/- Vitali set
+import Mathlib.Tactic
 
-  Proof of Theorem 2.9 in textbook
+import Mathlib.Data.Rat.Encodable
+import Mathlib.Data.Rat.Denumerable
+import Mathlib.Logic.Denumerable
+
+
+/- Theorem 2.9 Vitali set
 
 There is no set function m that can accept all subsets of [0,1] as input
 and return a nonnegative real number as output, such that it satisfies
@@ -10,16 +15,12 @@ and return a nonnegative real number as output, such that it satisfies
 * translation invariance (with wrapping around)
 * the output of interval [a,b] is b-a, for all 0<=a<b<=1
 
-In the proof below, we refer to such a measure as `Vitali measure`. THe conditions are 
+In the proof below, we refer to such a measure as `Vitali measure`. THe conditions are
 encoded in the definition `IsVitaliMeasure`. The proof is divided into a number of lemmas.
 The main theorem is at the end of the file.
 -/
 
-import Mathlib.Tactic
--- import for the proof of theorem about Vitali set
-import Mathlib.Data.Rat.Encodable
-import Mathlib.Data.Rat.Denumerable
-import Mathlib.Logic.Denumerable
+
 
 noncomputable section Vitali_set
 
@@ -29,13 +30,13 @@ open Classical  -- It is essential to use choice axioms here
 open Rat
 open Set
 
-/-- `I` is the closed unit interval `[0,1]` in `ℝ`. 
+/-- `I` is the closed unit interval `[0,1]` in `ℝ`.
   This is the domain on which the Vitali construction is carried out.
 -/
 def I : Set ℝ := Icc 0 1
 
-/-- `translate A d` is the mod‑1 translation of a set `A ⊆ ℝ` by a real number `d`.  
-  It sends each `x ∈ A` to `fract (x + d) ∈ [0,1)`, using `Int.fract`.  
+/-- `translate A d` is the mod‑1 translation of a set `A ⊆ ℝ` by a real number `d`.
+  It sends each `x ∈ A` to `fract (x + d) ∈ [0,1)`, using `Int.fract`.
   This models the equivalence relation on the circle.
 -/
 def translate (A : Set ℝ) (d : ℝ) : Set ℝ :=
@@ -43,24 +44,24 @@ def translate (A : Set ℝ) (d : ℝ) : Set ℝ :=
 
 /-- A *Vitali measure* is a function `m : Set ℝ → ENNReal` satisfying:
 
-* **Domain restriction:** sets not contained in `[0,1]` have measure `0`.  
-* **Monotonicity:** `A ⊆ B` implies `m A ≤ m B`.  
-* **Countable additivity:** disjoint countable unions have additive measure.  
-* **Translation invariance:** `m (A + d) = m A` for mod‑1 translation.  
+* **Domain restriction:** sets not contained in `[0,1]` have measure `0`.
+* **Monotonicity:** `A ⊆ B` implies `m A ≤ m B`.
+* **Countable additivity:** disjoint countable unions have additive measure.
+* **Translation invariance:** `m (A + d) = m A` for mod‑1 translation.
 * **Geometric length:** intervals have their usual length.
 
 This is the classical axiom system used to derive the Vitali paradox.
 -/
 def IsVitaliMeasure (m : Set ℝ → ENNReal) : Prop :=
   -- 0. Domain constraint (m is zero outside I, implicitly) & Empty set is 0
-  (∀ A, ¬(A ⊆ I) → m A = 0) ∧ 
+  (∀ A, ¬(A ⊆ I) → m A = 0) ∧
   (m ∅ = 0) ∧
 
   -- 1. Monotonicity
   (∀ A B, A ⊆ I → B ⊆ I → A ⊆ B → m A ≤ m B) ∧
 
   -- 2. Countable Additivity
-  (∀ f : ℕ → Set ℝ, 
+  (∀ f : ℕ → Set ℝ,
     (∀ n, f n ⊆ I) →              -- All sets are in [0,1]
     Pairwise (fun i j => Disjoint (f i) (f j)) →    -- Sets are pairwise disjoint
     m (⋃ n, f n) = ∑' n, m (f n)) ∧
@@ -69,17 +70,17 @@ def IsVitaliMeasure (m : Set ℝ → ENNReal) : Prop :=
   (∀ A, A ⊆ I → ∀ d : ℝ, m (translate A d) = m A) ∧
 
   -- 4. Geometric Length (m([a,b]) = b - a)
-  (∀ a b, 0 ≤ a → a ≤ b → b ≤ 1 → 
+  (∀ a b, 0 ≤ a → a ≤ b → b ≤ 1 →
     m (Icc a b) = ENNReal.ofReal (b - a))
 
 
-/-- `vitali_rel x y` means that `x - y` is rational.  
+/-- `vitali_rel x y` means that `x - y` is rational.
 This is the equivalence relation used to partition `[0,1]` into rational cosets.
 -/
 def vitali_rel (x y : ℝ) : Prop := ∃ q : ℚ, x - y = q
 
 
--- Proof that this is indeed an equivalence relation 
+-- Proof that this is indeed an equivalence relation
 lemma vitali_rel_equiv : Equivalence vitali_rel := by
   constructor
   · -- Reflexive: x - x = 0, which is rational
@@ -88,7 +89,7 @@ lemma vitali_rel_equiv : Equivalence vitali_rel := by
     intro x y ⟨q, h⟩
     use -q
     -- Turn ↑(-q) into -(↑q)
-    rw [Rat.cast_neg] 
+    rw [Rat.cast_neg]
     -- Substitute q with (x - y)
     rw [← h]
     -- Now prove y - x = -(x - y)
@@ -125,10 +126,10 @@ instance vitaliSetoid : Setoid I :=
 /-- The subtype of rationals in [0, 1) -/
 def Q_I_Type := {x : ℚ // 0 ≤ x ∧ x < 1}
 
-/-! 
+/-!
   We define the sequence by filtering the standard enumeration of ALL rationals.
   We use 'Encodable.decode' which gives the n-th rational (if it exists).
-  However, to ensure we get an infinite distinct sequence in [0,1), 
+  However, to ensure we get an infinite distinct sequence in [0,1),
   it is easier to use the fact that Q_I is infinite and Denumerable.
 -/
 
@@ -137,7 +138,7 @@ def Q_I_Type := {x : ℚ // 0 ≤ x ∧ x < 1}
 instance : Encodable Q_I_Type :=
   (inferInstance : Encodable {x : ℚ // 0 ≤ x ∧ x < 1})
 
--- Helper instance: The set of rationals in [0,1) is infinite 
+-- Helper instance: The set of rationals in [0,1) is infinite
 instance : Infinite Q_I_Type := by
   classical
   refine Infinite.of_injective
@@ -162,14 +163,14 @@ instance : Infinite Q_I_Type := by
             have hlt : (1 : ℚ) < n + 2 := by
               -- n + 2 ≥ 2 > 1
               have : (2 : ℚ) ≤ n + 2 := by
-                have : (2 : ℕ) ≤ n + 2 := by exact Nat.le_add_left 2 n 
+                have : (2 : ℕ) ≤ n + 2 := by exact Nat.le_add_left 2 n
                 exact_mod_cast this
               linarith
             -- use the → direction of `div_lt_one`
             have h' : (1 : ℚ) / (n + 2) < 1 :=
               (div_lt_one hpos).2 hlt
             simpa using h'⟩)
-  
+
     (by -- Injectivity proof
       intro n m h
       have := congrArg Subtype.val h
@@ -197,7 +198,7 @@ noncomputable def q_seq (n : ℕ) : ℝ := (q_bij n).val
 
 
 
-/-- A *Vitali set* is a choice of one representative from each equivalence class  
+/-- A *Vitali set* is a choice of one representative from each equivalence class
 of the relation `x ~ y` iff `x - y ∈ ℚ`, restricted to `[0,1]`.
 
 It is defined using `Quotient.out`, which relies on classical choice.
@@ -231,49 +232,49 @@ lemma vitali_seq_disjoint : Pairwise (fun i j => Disjoint (VitaliSeq i) (VitaliS
   rw [Int.fract_eq_fract] at h_fract_eq
   rcases h_fract_eq with ⟨k, hk⟩
 
-  have h_fract_eq : Int.fract (v1 + q_seq i) = Int.fract (v2 + q_seq j) 
+  have h_fract_eq : Int.fract (v1 + q_seq i) = Int.fract (v2 + q_seq j)
     := by rw [hx1, ← hx2]
   rw [Int.fract_eq_fract] at h_fract_eq
   rcases h_fract_eq with ⟨k, hk⟩
-  
+
   -- 2. Rearrange: v1 - v2 = qj - qi + k. This implies v1 ~ v2.
   have h_diff : v1 - v2 = q_seq j - q_seq i + k := by linarith
   have h_rel : vitali_rel v1 v2 := by
     use (q_bij j).val - (q_bij i).val + k
     rw [h_diff]; simp [q_seq]
 
-  -- 3. Since v1 and v2 are representatives from the quotient, 
+  -- 3. Since v1 and v2 are representatives from the quotient,
   -- v1 ~ v2 implies they are the same representative.
   have h_v_eq : v1 = v2 := by
     -- Retrieve the quotient classes c1, c2 now
     rcases hv1_mem with ⟨c1, rfl⟩
     rcases hv2_mem with ⟨c2, rfl⟩
-    
+
     -- v1 corresponds to representative of c1, v2 to c2.
     -- v1 ~ v2 means Quotient.mk v1 = Quotient.mk v2
     -- The Setoid is defined on I, so we use the subtype elements.
     let v1_sub : I := @Quotient.out _ vitaliSetoid c1
     let v2_sub : I := @Quotient.out _ vitaliSetoid c2
-    
+
     -- The relation h_rel is exactly the equivalence relation for the subtype elements
     have h_equiv : v1_sub ≈ v2_sub := h_rel
-    
+
     -- Therefore their classes are equal
     have h_mk_eq : Quotient.mk vitaliSetoid v1_sub = Quotient.mk vitaliSetoid v2_sub :=
       Quotient.sound h_equiv
-      
+
     -- Since they are output of Quotient.out, their class is just c1 (and c2)
     rw [Quotient.out_eq c1] at h_mk_eq
     rw [Quotient.out_eq c2] at h_mk_eq
-    
+
     -- So c1 = c2, which implies v1 = v2
     rw [h_mk_eq]
 
   subst h_v_eq
-  
+
   -- 4. Now the equation is qj - qi + k = 0
   have h_k_eq : q_seq j - q_seq i + k = 0 := by linarith [hk]
-  
+
   -- 5. Bound k. Since q_seq ∈ [0, 1), the difference is in (-1, 1). Integer k must be 0.
   have h_k_zero : k = 0 := by
     -- Explicitly state bounds for q_seq in ℝ
@@ -283,7 +284,7 @@ lemma vitali_seq_disjoint : Pairwise (fun i j => Disjoint (VitaliSeq i) (VitaliS
     have hj : 0 ≤ q_seq j ∧ q_seq j < 1 := by
       have h := (q_bij j).2
       simp [q_seq]; norm_cast
-    
+
     have h_bound : -1 < (k : ℝ) ∧ (k : ℝ) < 1 := by
       -- Use linarith with explicit hypotheses
       rcases hi with ⟨hi_lo, hi_hi⟩
@@ -292,7 +293,7 @@ lemma vitali_seq_disjoint : Pairwise (fun i j => Disjoint (VitaliSeq i) (VitaliS
       have : (k : ℝ) = q_seq i - q_seq j := by linarith [h_k_eq]
       rw [this]
       constructor <;> linarith
-      
+
     norm_cast at h_bound
     rcases h_bound with ⟨h_gt, h_lt⟩
     -- Convert integer strict inequalities to non-strict
@@ -310,17 +311,17 @@ lemma vitali_seq_disjoint : Pairwise (fun i j => Disjoint (VitaliSeq i) (VitaliS
   rw [h_k_zero] at h_k_eq
   -- Simplify `↑0` to `0` and remove it
   simp only [Int.cast_zero, add_zero, sub_eq_zero] at h_k_eq
-  
+
   -- Now h_k_eq is `q_seq j = q_seq i`.
   have h_idx : i = j := by
     unfold q_seq at h_k_eq
     -- Remove the coercion from Rat to Real
-    norm_cast at h_k_eq 
+    norm_cast at h_k_eq
     -- Use injectivity of the sequence bijection
     apply q_bij.injective
     apply Subtype.ext
     exact h_k_eq.symm
-    
+
   -- Contradiction
   exact hij h_idx
 
@@ -342,7 +343,7 @@ lemma vitali_covers_Ico : Ico 0 1 ⊆ ⋃ n, VitaliSeq n := by
 
   -- 3. x and y are related (x ~ y)
   have h_equiv : ⟨x, Ico_subset_Icc_self hx⟩ ≈ y_sub := Quotient.eq.mp (Quotient.out_eq c).symm
-  
+
   rcases h_equiv with ⟨q_diff, h_diff⟩ -- x - y = q_diff
 
   -- 4. Consider the fractional part of the difference: fract(x - y)
@@ -361,12 +362,12 @@ lemma vitali_covers_Ico : Ico 0 1 ⊆ ⋃ n, VitaliSeq n := by
     -- Use the lemma you found: ⌊↑q⌋ = ⌊q⌋
     rw [Rat.floor_cast]
 
-  rcases h_q_rat with ⟨q_rat, h_q_eq⟩    
+  rcases h_q_rat with ⟨q_rat, h_q_eq⟩
 
   -- 5. Show this rational is in our enumeration range [0, 1)
   have h_mem_Q_I : 0 ≤ q_rat ∧ q_rat < 1 := by
     rw [← Rat.cast_le (K := ℝ), ← Rat.cast_lt (K := ℝ), h_q_eq]
-    simp only [Rat.cast_zero, Rat.cast_one]     
+    simp only [Rat.cast_zero, Rat.cast_one]
     exact ⟨Int.fract_nonneg _, Int.fract_lt_one _⟩
   -- 6. Find the index n such that q_seq n = fract(x - y)
   let q_elt : Q_I_Type := ⟨q_rat, h_mem_Q_I⟩
@@ -400,8 +401,8 @@ lemma vitali_covers_Ico : Ico 0 1 ⊆ ⋃ n, VitaliSeq n := by
   -- Since x ∈ [0, 1), fract(x) = x
   -- Use property: fract(a - integer) = fract(a)
   rw [Int.fract_sub_intCast]
-  
-  -- Goal is now: Int.fract x = x  
+
+  -- Goal is now: Int.fract x = x
   exact Int.fract_eq_self.mpr hx
 
 
@@ -456,7 +457,7 @@ axioms guarantee
 `m (⋃ n, VitaliSeq n) = ∑' n, m (VitaliSeq n)`.
 -/
 
-lemma sum_vitali_eq_union (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) : 
+lemma sum_vitali_eq_union (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) :
     (∑' n, m (VitaliSeq n)) = m (⋃ n, VitaliSeq n) := by
   rcases h with ⟨_, _, _, h_add, _, _⟩
   apply (h_add VitaliSeq _ _).symm
@@ -467,11 +468,11 @@ lemma sum_vitali_eq_union (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) :
 /-- **Helper Lemma 4**: Measure of a singleton is 0.
 A Vitali measure assigns measure zero to every singleton `{x}` in `[0,1]`.
 
-This follows from the geometric length axiom:  
+This follows from the geometric length axiom:
 `m [x, x] = 0`, and the interval `[x, x]` is exactly the singleton `{x}`.
 -/
 lemma measure_singleton_zero (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m)
-    (x : ℝ) (hx : x ∈ I) : 
+    (x : ℝ) (hx : x ∈ I) :
   m {x} = 0 := by
   rcases h with ⟨_, _, _, _, _, h_len⟩
   rw [← Set.Icc_self, h_len x x hx.1 le_rfl hx.2]
@@ -489,28 +490,28 @@ on a finite partition, and applies:
 
 Thus `m [0,1) = m [0,1] - m {1} = 1`.
 -/
-lemma measure_Ico_one (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) : 
+lemma measure_Ico_one (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) :
     m (Ico 0 1) = 1 := by
   rcases h with ⟨h_dom, h_empty, h_mono, h_add, h_trans, h_len⟩
   have h_union : Icc 0 1 = Ico 0 1 ∪ {1} := by ext; simp [le_iff_lt_or_eq]
 
   -- 1. Disjointness
-  have h_disj : Disjoint (Ico 0 1) {1} := by 
+  have h_disj : Disjoint (Ico 0 1) {1} := by
     rw [Set.disjoint_iff_inter_eq_empty]
     ext
     simp only [mem_inter_iff, mem_Ico, zero_le, Nat.lt_one_iff, true_and, mem_singleton_iff,
-      mem_empty_iff_false, iff_false, not_and] 
+      mem_empty_iff_false, iff_false, not_and]
     intro h
     rw [h]
     norm_num
 
   -- 2. Define the sequence f
   let f : ℕ → Set ℝ := fun n => if n = 0 then Ico 0 1 else if n = 1 then {1} else ∅
-  
-  have h_sub : ∀ n, f n ⊆ I := by 
+
+  have h_sub : ∀ n, f n ⊆ I := by
     intro n; dsimp [f]; split_ifs <;> simp [I, Ico_subset_Icc_self]
-  
-  -- 3. Pairwise disjointness  
+
+  -- 3. Pairwise disjointness
   have h_pw : Pairwise (fun i j => Disjoint (f i) (f j)) := by
     intro i j hij
     dsimp [f]
@@ -524,14 +525,14 @@ lemma measure_Ico_one (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) :
       try exact h_disj       -- Solves Disjoint (Ico 0 1) {1}
       try exact h_disj.symm  -- Solves Disjoint {1} (Ico 0 1)
     }
-    
+
   have h_sum := h_add f h_sub h_pw
 
   -- 4. Prove Union f = Icc 0 1
   have h_U : (⋃ n, f n) = Icc 0 1 := by
     -- Apply extensionality first to match elements
     ext x
-    constructor    
+    constructor
     · intro hx
       -- Explicitly rewrite with mem_iUnion to ensure n is treated as ℕ
       rw [mem_iUnion] at hx
@@ -560,28 +561,28 @@ lemma measure_Ico_one (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) :
   -- rw [tsum_eq_add_tsum_ite (b := 0), tsum_eq_add_tsum_ite (b := 1)] at h_sum
   simp [f] at h_sum
 
-  -- 5. Calculate sum using Finset  
+  -- 5. Calculate sum using Finset
   have h_sum_calc : (∑' n, m (f n)) = m (Ico 0 1) + m {1} := by
     let s : Finset ℕ := {0, 1}
     -- Support condition
     have h_supp : ∀ n, n ∉ s → m (f n) = 0 := by
       intro n hn
       rw [Finset.mem_insert, Finset.mem_singleton] at hn
-      push_neg at hn
+      push Not at hn
       dsimp [f]
       rw [if_neg hn.1, if_neg hn.2]
       exact h_empty
-    
+
     rw [tsum_eq_sum h_supp]
     -- Expand finite sum {0, 1}
     rw [Finset.sum_pair (by norm_num : 0 ≠ 1)]
     dsimp [f]
-    
+
   -- 6. Define known values
-  have h_meas_one : m {1} = 0 := 
-    measure_singleton_zero m 
+  have h_meas_one : m {1} = 0 :=
+    measure_singleton_zero m
       (by exact ⟨h_dom, h_empty, h_mono, h_add, h_trans, h_len⟩) 1 (by simp [I])
-  have h_meas_I : m (Icc 0 1) = 1 := 
+  have h_meas_I : m (Icc 0 1) = 1 :=
     by rw [h_len 0 1 le_rfl zero_le_one le_rfl]; simp
 
   -- 7. Final Calculation using the Additivity Hypothesis
@@ -599,7 +600,7 @@ lemma measure_Ico_one (m : Set ℝ → ENNReal) (h : IsVitaliMeasure m) :
 /-- **There is no Vitali measure.**
 
 Assume `m` is a set function that can take any subsets of [0,1] as input and return a number in [0,∞],
-satisfying the Vitali axioms.  
+satisfying the Vitali axioms.
 
 Suppose rational numbers in [0,1) is enumerated as q0, q1, q2, ...
 
@@ -619,8 +620,8 @@ Thus no such measure `m` can exist.
 -/
 theorem not_exists_vitali_measure : ¬ ∃ m, IsVitaliMeasure m := by
   intro h
-  rcases h with ⟨m, h_V⟩ 
-  
+  rcases h with ⟨m, h_V⟩
+
   -- Helper: Measure of a singleton is 0
   -- have h_sing : ∀ x ∈ I, m {x} = 0 := by
   --   intro x hx
@@ -630,20 +631,20 @@ theorem not_exists_vitali_measure : ¬ ∃ m, IsVitaliMeasure m := by
     rintro x ⟨c, rfl⟩
     exact (@Quotient.out _ vitaliSetoid c).2
 
-  have h_disjoint : Pairwise (fun i j => Disjoint (VitaliSeq i) (VitaliSeq j)) 
+  have h_disjoint : Pairwise (fun i j => Disjoint (VitaliSeq i) (VitaliSeq j))
     := by exact vitali_seq_disjoint
- 
+
   have h_cover : Ico 0 1 ⊆ ⋃ n, VitaliSeq n := vitali_covers_Ico
 
   -- apply the countable additivity assumption
-  have h_sum_eq : (∑' n, m (VitaliSeq n)) = m (⋃ n, VitaliSeq n) := 
+  have h_sum_eq : (∑' n, m (VitaliSeq n)) = m (⋃ n, VitaliSeq n) :=
     -- Bundle the loose hypotheses back into the structure to call the lemma
     sum_vitali_eq_union m h_V
 
-  have h_invariant : ∀ n, m (VitaliSeq n) = m VitaliSet := 
+  have h_invariant : ∀ n, m (VitaliSeq n) = m VitaliSet :=
     measure_vitali_invariant m h_V
 
-  have h_one_le_union : 1 ≤ m (⋃ n, VitaliSeq n) := by 
+  have h_one_le_union : 1 ≤ m (⋃ n, VitaliSeq n) := by
     rw [← measure_Ico_one m h_V]
     rcases h_V with ⟨_, _, h_mono, _, _, _⟩
     apply h_mono (Ico 0 1) (⋃ n, VitaliSeq n)
@@ -651,17 +652,17 @@ theorem not_exists_vitali_measure : ¬ ∃ m, IsVitaliMeasure m := by
     · apply Set.iUnion_subset; intro n; exact translate_subset_I _ _
     · exact h_cover
 
-  have h_union_le_one : m (⋃ n, VitaliSeq n) ≤ 1 := by 
+  have h_union_le_one : m (⋃ n, VitaliSeq n) ≤ 1 := by
     rcases h_V with ⟨_, _, h_mono, _, _, h_len⟩
-    
+
     -- 1. Show m(I) = 1
     have h_m_I : m I = 1 := by
       rw [I, h_len 0 1 le_rfl zero_le_one le_rfl]
       simp
-      
+
     -- 2. Rewrite the goal to match h_mono
     rw [← h_m_I]
-    
+
     -- 3. Apply monotonicity
     apply h_mono (⋃ n, VitaliSeq n) I
     · -- Union is subset of I
@@ -681,7 +682,7 @@ theorem not_exists_vitali_measure : ¬ ∃ m, IsVitaliMeasure m := by
   -- Rewrite the sum to be explicitly ∑ c
   have h_sum_c : (∑' n, m (VitaliSeq n)) = ∑' (n : ℕ), c := by
     congr; ext n; exact h_invariant n
-  
+
   rw [h_sum_c] at h_sum_eq
 
   by_cases hc0 : c = 0
