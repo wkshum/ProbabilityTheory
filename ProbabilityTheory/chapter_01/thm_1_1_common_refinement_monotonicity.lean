@@ -1,7 +1,7 @@
 import ProbabilityTheory.chapter_01.thm_1_1_common_refinement_points
 
 open Finset BigOperators
-open MeasureTheory Set Topology
+open Set Topology
 
 noncomputable section
 

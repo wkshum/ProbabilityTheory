@@ -1,7 +1,7 @@
 import ProbabilityTheory.chapter_01.thm_1_1_finite_discontinuity
 
 open Finset BigOperators
-open MeasureTheory Set Topology
+open Set Topology
 
 noncomputable section
 
