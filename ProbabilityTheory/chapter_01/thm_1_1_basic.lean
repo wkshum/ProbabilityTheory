@@ -3,7 +3,8 @@ import ProbabilityTheory.chapter_01.thm_1_2
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 
 open Finset BigOperators
-open MeasureTheory Set Topology
+open MeasureTheory
+open Set Topology
 
 noncomputable section
 

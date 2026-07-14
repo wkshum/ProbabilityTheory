@@ -1,6 +1,23 @@
 import ProbabilityTheory.chapter_01.def_1_2
 
 
+/-
+
+ Theorem 1.2, parts 1, 2, and 3.
+
+
+
+ Using the machinary developed in this file, we also prove a fundamental
+ result:
+
+ Any lower sum L(P,f,α) is bounded above by any upper sum U(P', f,α)
+ on the same interval
+
+ by considering the common refinement of partition P and P'. This fact
+ will be usedin part 4 of Theorem 1.2.
+
+-/
+
 open scoped BigOperators Pointwise
 
 open Finset Set

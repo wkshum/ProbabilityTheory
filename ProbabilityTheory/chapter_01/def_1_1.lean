@@ -19,7 +19,7 @@ $\mathbf{X}$ with values in $\mathbb{R}^n$ is called \textit{singular}
 
 /-
 We skip the hypothesis `Measurable X`
-to the definition. Right now, it is defined
+to the definition. It is defined
 for any function X, not just for measurable function.
 -/
 

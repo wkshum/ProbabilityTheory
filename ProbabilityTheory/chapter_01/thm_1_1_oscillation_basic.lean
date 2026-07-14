@@ -2,7 +2,8 @@ import ProbabilityTheory.chapter_01.thm_1_1_basic
 import Mathlib.Topology.MetricSpace.Infsep
 
 open Finset BigOperators
-open MeasureTheory Set Topology
+open MeasureTheory
+open Set Topology
 
 noncomputable section
 
