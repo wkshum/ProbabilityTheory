@@ -2,10 +2,6 @@ import ProbabilityTheory.chapter_01.thm_1_1_common_limit
 import Mathlib.Topology.Order.ProjIcc
 
 open Finset BigOperators
-<<<<<<< HEAD
-open MeasureTheory
-=======
->>>>>>> 9f9e0899aab75b7bd64d9e5f546a93c80411d6af
 open Set Topology
 
 noncomputable section
