@@ -3,7 +3,7 @@ This repo is an AI-assisted Lean 4 formalization of my book _Measure-Theoretic P
 ---
 ### Contributors 
 
-This formalization project was developed by **Shuo Deng**, with assistance from ChatGPT and the ToyApollo project.
+This formalization project was developed by **Shuo Deng**, with assistance from ChatGPT, Germini, Harmonic's Aristotle, and the ToyApollo project.
 
 ---
 
@@ -13,25 +13,7 @@ The Lean programs depend on Mathlib, version 4.31
 `leanprover/lean4:v4.31.0`
 
 ---
-
-### Number of definitions and theorems formulated
-
-We formulate all definitions and verify all theorems in the book. Most of the examples and exercises are included.
-
-| Type       | Count |
-| ---------- | ----- |
-| Definition | 81    |
-| Theorem    | 127   |
-| Example    | 107   |
-| Problem    | 134   |
-#### Naming convention
-
-- `def_C_N` / `thm_C_N` / `ex_C_S_N` / `prob_C_N` -- definition / theorem / example / problem, where `C` is the chapter, `S` is the section, and `N` is a number.  For example, `def_2_1` is Definition 2.1 in the textbook.
-
-- A module name `thm_9_5_2` with an extra numeric suffix is a helper lemma for the parent task (`thm_9_5`). 
-
----
-### How to compile?
+#### How to build and compile?
 
 All theorems are in the subdirectory `ProbabilityTheory`, organized according to chapters. Clone the folder `ProbabilityTheory`, and add the lines 
 
@@ -40,6 +22,11 @@ All theorems are in the subdirectory `ProbabilityTheory`, organized according to
 
 in the file `lakefile.toml`, so that the Lean programs can import files in the same folder. All relevant theorems and programs are listed in `Main.lean`.
 
+#### Naming convention
+
+- `def_C_N` / `thm_C_N` / `ex_C_S_N` / `prob_C_N` -- definition / theorem / example / problem, where `C` is the chapter, `S` is the section, and `N` is a number.  For example, `def_2_1` is Definition 2.1 in the textbook.
+
+- A module name `thm_9_5_2` with an extra numeric suffix is a helper lemma for the parent task (`thm_9_5`). 
 ---
 
 ### Connection to Mathlib and logical dependency
@@ -66,24 +53,34 @@ The project distinguishes four layers of functionality:
 
 ### Content
 
+The total number of definitions, theorems, examples and problems are tabulated below.
 
-| Chapter 1 | Beyond Discrete and Continuous Random Variables  |                                                                                    |
-| --------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Section 1 | Discrete and continuous random variables         | not formalized                                                                     |
-| Section 2 | Random variables of mixed type and singular type | Def 1.1, Ex. 1.2.1, Ex 1.2.2, Ex 1.2.3.                                            |
-| Section 3 | Riemann-Stieltjes integrals                      | Def 1.2, Def 1.3, Def 1.4, Thm 1.1, Thm 1.2, Thm 1.3, Thm 1.4, Ex 1.3.1, Ex. 1.3.2 |
-| Section 4 | Problems                                         | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10                                            |
+| Type       | Count |
+| ---------- | ----- |
+| Definition | 81    |
+| Theorem    | 127   |
+| Example    | 107   |
+| Problem    | 134   |
+
+The formulated definitions and theorems are highlighted in boldface.
+
+| Chapter 1 | Beyond Discrete and Continuous Random Variables  |                                                                                                                |
+| --------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Section 1 | Discrete and continuous random variables         | not formalized                                                                                                 |
+| Section 2 | Random variables of mixed type and singular type | **Def 1.1**, Ex. 1.2.1, Ex 1.2.2, Ex 1.2.3.                                                                    |
+| Section 3 | Riemann-Stieltjes integrals                      | **Def 1.2**, **Def 1.3**, **Def 1.4**, **Thm 1.1**, **Thm 1.2**, **Thm 1.3**, **Thm 1.4**, Ex 1.3.1, Ex. 1.3.2 |
+| Section 4 | Problems                                         | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10                                                                        |
 
 
-| Chapter 2 | Probability Spaces |                                                                          |
-| --------- | ------------------ | ------------------------------------------------------------------------ |
-| Section 1 | Countable sets     | Def 2.1, Ex 2.1.1, Ex 2.1.2                                              |
-| Section 2 | Algebra of events  | Def 2.2, Def 2.3, Def 2.4, Thm 2.1, Ex 2.2.1,  Ex 2.2.2,                 |
-| Section 3 | Measure functions  | Def 2.5, Def 2.6, Thm 2.2, Thm 2.3, Thm 2.4, Thm 2.5, Ex 2.3.1, Ex 2.3.2 |
-| Section 4 | Borel sets         | Def. 2.7, Def 2.8, Thm 2.6, Thm 2.7, Thm 2.8, Ex 2.4.1                   |
-| Section 5 | Vitali set         | Thm 2.9                                                                  |
-| Section 6 | Problems           | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12                        |
-
+| Chapter 2 | Probability Spaces |                                                                                                  |
+| --------- | ------------------ | ------------------------------------------------------------------------------------------------ |
+| Section 1 | Countable sets     | **Def 2.1**, Ex 2.1.1, **Ex 2.1.2**                                                              |
+| Section 2 | Algebra of events  | **Def 2.2**, **Def 2.3**, **Def 2.4**, **Thm, 2.1**, Ex 2.2.1,  Ex 2.2.2,                        |
+| Section 3 | Measure functions  | **Def 2.5**, **Def 2.6**, **Thm 2.2**, **Thm 2.3**, **Thm 2.4**, **Thm 2.5**, Ex 2.3.1, Ex 2.3.2 |
+| Section 4 | Borel sets         | **Def. 2.7**, **Def 2.8**, **Thm 2.6**, **Thm 2.7**, **Thm 2.8**, Ex 2.4.1                       |
+| Section 5 | Vitali set         | **Thm 2.9**                                                                                      |
+| Section 6 | Problems           | P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12                                                |
+s
 
 | Chapter 3 | Lebesgue-Stieltjes Measures     |                                                                                                         |
 | --------- | ------------------------------- | ------------------------------------------------------------------------------------------------------- |

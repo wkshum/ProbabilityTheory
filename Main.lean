@@ -31,10 +31,7 @@ import ProbabilityTheory.chapter_02.def_2_6
 import ProbabilityTheory.chapter_02.thm_2_5
 import ProbabilityTheory.chapter_02.def_2_7
 import ProbabilityTheory.chapter_02.def_2_8
-
-/-
 import ProbabilityTheory.chapter_02.thm_2_6
 import ProbabilityTheory.chapter_02.thm_2_7
 import ProbabilityTheory.chapter_02.thm_2_8
 import ProbabilityTheory.chapter_02.thm_2_9
--/
