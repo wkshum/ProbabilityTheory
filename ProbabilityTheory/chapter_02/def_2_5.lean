@@ -1,7 +1,4 @@
 import Mathlib.Tactic
--- import Mathlib.MeasureTheory.MeasurableSpace.Defs
--- import Mathlib.MeasureTheory.Measure.MeasureSpaceDef
-import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.MeasureTheory.Measure.Typeclasses.Probability
 
 /-
@@ -49,39 +46,10 @@ def IsProbabilityMeasureOn {Ω : Type*} [MeasurableSpace Ω] (μ : Measure Ω) :
 structure MeasureSpaceData (Ω : Type*) [MeasurableSpace Ω] where
   measure : Measure Ω
 
-/-- A probability space packages a measurable space with a probability measure.
- We obtain this data structure by extending `MeasureSpaceData` and adding
- the condition that the measure of the whole space is 1.
--/
-structure ProbabilitySpaceData (Ω : Type*) [MeasurableSpace Ω]
-  extends MeasureSpaceData Ω where
-  (is_probability : IsProbabilityMeasure measure)
+/-- A probability space packages a measurable space with a probability measure. -/
+structure ProbabilitySpaceData (Ω : Type*) [MeasurableSpace Ω] where
+  measure : Measure Ω
+  is_probability : IsProbabilityMeasure measure
 
--- structure ProbabilitySpaceData (Ω : Type*) [MeasurableSpace Ω] where
---   measure : Measure Ω
---   is_probability : IsProbabilityMeasure measure
-
-/-- # Definition 2.5 Measure functino
-Exported definition for Definition 2.5. -/
+/-- Exported definition for Definition 2.5. -/
 def def_2_5 {Ω : Type*} [MeasurableSpace Ω] := Measure Ω
-
-
-/-
-  The measure function make takes the infinity as its value
-  We have the following convention with ∞
--/
-
-section checking_ENNReal
-
-open ENNReal
-
--- c + ∞ = ∞
-example (c : ENNReal) : c + ∞ = ∞ := by
-  exact add_top c
-
--- ∞ · ∞ = ∞
-example : ∞ * ∞ = ∞ := by
-  exact top_mul_top
-
-
-end checking_ENNReal
