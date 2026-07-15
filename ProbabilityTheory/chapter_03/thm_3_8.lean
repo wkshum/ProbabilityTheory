@@ -14,8 +14,9 @@ Dynkin system and explicitly applies the project's pi-lambda theorem `thm_3_7`.
 
 open MeasureTheory Set ENNReal MeasurableSpace
 
-/-- **Theorem 3.8 (short Mathlib proof).** Two sigma-finite extensions agreeing on a
-generating field agree everywhere. -/
+/-- ## Theorem 3.8 (short Mathlib proof).
+Two sigma-finite extensions agreeing on a generating field agree
+everywhere. -/
 theorem thm_3_8 {Ω : Type*} [m : MeasurableSpace Ω] (F₀ : Set (Set Ω))
   (h_gen : m = MeasurableSpace.generateFrom F₀)
   (h_field_compl : ∀ s ∈ F₀, sᶜ ∈ F₀)
@@ -38,8 +39,10 @@ theorem thm_3_8 {Ω : Type*} [m : MeasurableSpace Ω] (F₀ : Set (Set Ω))
     exact (h_finite i).2.ne
   · exact h_eq_on_F₀
 
-/-- **Theorem 3.8 (textbook proof).** This independent proof follows the book's
-sigma-finite reduction and explicitly invokes the pi-lambda theorem `thm_3_7`. -/
+/-- ## Theorem 3.8 (textbook proof).
+This independent proof follows the book's sigma-finite reduction and
+explicitly invokes the pi-lambda theorem `thm_3_7`.
+-/
 theorem thm_3_8_textbook {Ω : Type*} [m : MeasurableSpace Ω] (F₀ : Set (Set Ω))
   (h_gen : m = MeasurableSpace.generateFrom F₀)
   (h_field_empty : ∅ ∈ F₀)
@@ -109,7 +112,9 @@ theorem thm_3_8_textbook {Ω : Type*} [m : MeasurableSpace Ω] (F₀ : Set (Set 
     _ = μ2 (⋃ i, B ∩ Ω_seq i) := (measure_iUnion hdisj' hmeas').symm
     _ = μ2 B := by rw [hcov]
 
-/-- The full extension theorem, assembled after Theorem 3.8: existence comes from
+
+/-- ## Theorem 3.1  Measure extension theorem
+The full extension theorem, assembled after Theorem 3.8: existence comes from
 Theorem 3.1 and uniqueness from the short Mathlib proof of Theorem 3.8. -/
 theorem extension_unique {X : Type u} (F₀ : FieldOfSets X) (pm : Premeasure F₀)
     (h_sigma_finite : IsSigmaFinite pm) :
