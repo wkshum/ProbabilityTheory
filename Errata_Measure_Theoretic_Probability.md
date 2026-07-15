@@ -31,7 +31,7 @@ However, in some books, such as Rudin's "Principles of Mathematical Analysis," R
 
 - p.43. line -15. In Example 3.3.6, the slope 1/6 should be 3/2.
 
-- p.46. Definition 3.10. The definition of pi-system is missing the requirement of nonemptyness. According to wikipeida, a pi system is a nonempty collection of sets that is closed under intersection. The definition of pi system in Mathlib is not the same as in wikipeida. Mathlib requires that a pi system be  closed under intersection of non-disjoint set, without requiring that the collection is nonempty. This variation is more convenient for formalization purpose. We show in our repo that, Mathlib's definition is equivalent to a pi system containing the empty set. 
+- p.46. Definition 3.10. The definition of pi-system is missing the requirement of nonemptyness. According to wikipeida, a pi system is a nonempty collection of sets that is closed under intersection. The definition of pi system in Mathlib is not the same as in wikipeida. Mathlib requires that a pi system be  closed under intersection of non-disjoint set, without requiring that the collection is nonempty. This variation is more convenient for formalization purpose. We show in our repo that, with the additional assumption that a pi system contains the empty set, Mathlib's definition is equivalent to the usual definition of pi system.
 
 
 ## Chapter 4
