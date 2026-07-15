@@ -49,3 +49,12 @@ import ProbabilityTheory.chapter_03.def_3_7
 import ProbabilityTheory.chapter_03.def_3_8
 import ProbabilityTheory.chapter_03.def_3_9
 import ProbabilityTheory.chapter_03.def_3_10
+import ProbabilityTheory.chapter_03.thm_3_1
+import ProbabilityTheory.chapter_03.thm_3_2
+import ProbabilityTheory.chapter_03.thm_3_3
+import ProbabilityTheory.chapter_03.thm_3_4
+import ProbabilityTheory.chapter_03.thm_3_5
+import ProbabilityTheory.chapter_03.thm_3_6
+import ProbabilityTheory.chapter_03.thm_3_7
+import ProbabilityTheory.chapter_03.thm_3_8
+import ProbabilityTheory.chapter_03.thm_3_9

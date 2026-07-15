@@ -19,7 +19,7 @@ structure FieldOfSets (Ω : Type*) where
 
 
 
-/--  # Definition 3.1
+/--  ## Definition 3.1
 
 A pre-measure μ₀ defined on a field F₀ is a set function from F₀ to [0, ∞]
 satisfying the conditions of being null at empty and countably additive for

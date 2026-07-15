@@ -3,7 +3,7 @@ import Mathlib.Topology.Order.Basic
 
 open Set Filter
 
-/-- # Definition 3.5
+/-- ## Definition 3.5
 A function $F: \mathbb{R} \to \mathbb{R}$ is called a **Stieltjes measure function** if:
 1. $F$ is non-decreasing.
 2. $F$ is continuous from the right, i.e., $\lim_{y \to x^+} F(y) = F(x)$ for all $x \in \mathbb{R}$.
