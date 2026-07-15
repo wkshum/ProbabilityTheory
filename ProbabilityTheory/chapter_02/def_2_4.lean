@@ -61,5 +61,15 @@ theorem setLiminf_subset_setLimsup {Ω : Type*} (E : ℕ → Set Ω) :
 
 /-- # Definition 2.4  Limit of a sequence of sets
 Exported definition for Definition 2.4. -/
-def def_2_4 {Ω : Type*} (E : ℕ → Set Ω) : Set Ω :=
+def def_2_4 {Ω : Type*} (E : ℕ → Set Ω)
+    (_h : setSeqLimitExists E) : Set Ω :=
   setLiminf E
+
+@[simp] theorem def_2_4_eq_setLiminf {Ω : Type*} (E : ℕ → Set Ω)
+    (h : setSeqLimitExists E) :
+    def_2_4 E h = setLiminf E := rfl
+
+theorem def_2_4_eq_setLimsup {Ω : Type*} (E : ℕ → Set Ω)
+    (h : setSeqLimitExists E) :
+    def_2_4 E h = setLimsup E := by
+  exact h

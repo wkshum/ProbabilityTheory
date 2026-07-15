@@ -177,8 +177,7 @@ theorem thm_2_4_tsum_eq_iSup_sum_range_succ (f : ℕ → ENNReal) :
   · refine iSup_le fun n => ?_
     exact le_iSup_of_le n
       (Finset.sum_le_sum_of_subset_of_nonneg (Finset.range_mono (Nat.le_succ n))
-        (fun i _hi _hnot => by
-          simp only [zero_le] ))
+        (fun _i _hi _hnot => bot_le))
   · refine iSup_le fun n => ?_
     exact le_iSup_of_le (n + 1) le_rfl
 
