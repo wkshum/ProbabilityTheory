@@ -35,3 +35,17 @@ import ProbabilityTheory.chapter_02.thm_2_6
 import ProbabilityTheory.chapter_02.thm_2_7
 import ProbabilityTheory.chapter_02.thm_2_8
 import ProbabilityTheory.chapter_02.thm_2_9
+
+
+-- Chapter 3
+
+import ProbabilityTheory.chapter_03.def_3_1
+import ProbabilityTheory.chapter_03.def_3_2
+import ProbabilityTheory.chapter_03.def_3_3
+import ProbabilityTheory.chapter_03.def_3_4
+import ProbabilityTheory.chapter_03.def_3_5
+import ProbabilityTheory.chapter_03.def_3_6
+import ProbabilityTheory.chapter_03.def_3_7
+import ProbabilityTheory.chapter_03.def_3_8
+import ProbabilityTheory.chapter_03.def_3_9
+import ProbabilityTheory.chapter_03.def_3_10
