@@ -170,9 +170,10 @@ theorem openBoxes_isTopologicalBasis (d : ℕ) :
 /-- The transported open boxes form a topological basis on Mathlib's Euclidean model of `ℝ^d`. -/
 theorem euclideanOpenBoxes_isTopologicalBasis (d : ℕ) :
     TopologicalSpace.IsTopologicalBasis (euclideanOpenBoxes d) := by
-  let e : EuclideanSpace ℝ (Fin d) ≃L[ℝ] (Fin d → ℝ) :=
-    EuclideanSpace.equiv (Fin d) ℝ
-  exact (openBoxes_isTopologicalBasis d).isInducing e.toHomeomorph.isInducing
+  change TopologicalSpace.IsTopologicalBasis
+    (Set.preimage (EuclideanSpace.equiv (Fin d) ℝ) '' openBoxes d)
+  exact (openBoxes_isTopologicalBasis d).isInducing
+    (EuclideanSpace.equiv (Fin d) ℝ).toHomeomorph.isInducing
 
 /-- Source-spine direction: every open ball is a countable union of open boxes. -/
 theorem euclideanOpenBall_eq_countable_biUnion_openBoxes
