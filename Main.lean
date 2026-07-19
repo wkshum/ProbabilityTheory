@@ -97,3 +97,21 @@ import ProbabilityTheory.chapter_05.thm_5_8
 import ProbabilityTheory.chapter_05.thm_5_9
 import ProbabilityTheory.chapter_05.thm_5_10
 import ProbabilityTheory.chapter_05.thm_5_11
+
+
+-- Chapter 6
+
+import ProbabilityTheory.chapter_06.def_6_1
+import ProbabilityTheory.chapter_06.def_6_2
+import ProbabilityTheory.chapter_06.def_6_3
+import ProbabilityTheory.chapter_06.def_6_4
+import ProbabilityTheory.chapter_06.def_6_5
+import ProbabilityTheory.chapter_06.def_6_6
+import ProbabilityTheory.chapter_06.def_6_7
+import ProbabilityTheory.chapter_06.thm_6_1
+import ProbabilityTheory.chapter_06.thm_6_2
+import ProbabilityTheory.chapter_06.thm_6_3
+import ProbabilityTheory.chapter_06.thm_6_4
+import ProbabilityTheory.chapter_06.thm_6_5
+import ProbabilityTheory.chapter_06.thm_6_6
+-- import ProbabilityTheory.chapter_06.thm_6_7
