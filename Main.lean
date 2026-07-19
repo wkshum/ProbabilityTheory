@@ -114,4 +114,4 @@ import ProbabilityTheory.chapter_06.thm_6_3
 import ProbabilityTheory.chapter_06.thm_6_4
 import ProbabilityTheory.chapter_06.thm_6_5
 import ProbabilityTheory.chapter_06.thm_6_6
--- import ProbabilityTheory.chapter_06.thm_6_7
+import ProbabilityTheory.chapter_06.thm_6_7
