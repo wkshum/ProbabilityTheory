@@ -1,5 +1,4 @@
 import ProbabilityTheory.chapter_03.def_3_5
--- import Mathlib.Tactic
 
 /-
 
@@ -11,10 +10,10 @@ open MeasureTheory Set ENNReal
 
 /--
   ## Theorem 3.3
-  We can consturct Lebesgue-Stieltjes measure on ℝ using Stieltjes measure function
+  We can construct Lebesgue-Stieltjes measure on ℝ using a Stieltjes measure function.
   The proof below is an application of Mathlib's API `toStieltjesFunction`
 -/
-theorem temp_blala (F : StieltjesMeasureFunction) :
+theorem thm_3_3 (F : StieltjesMeasureFunction) :
     ∃! μ : Measure ℝ, ∀ a b : ℝ, μ (Ioc a b) = ENNReal.ofReal (F b - F a) := by
   refine ⟨F.toStieltjesFunction.measure, ?_, ?_⟩
   · intro a b
