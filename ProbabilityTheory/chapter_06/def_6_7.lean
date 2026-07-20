@@ -1,4 +1,4 @@
-import ProbabilityTheory.chapter_06.def_6_6
+import ProbabilityTheory.chapter_06.def_6_5
 
 /-
 
@@ -21,14 +21,9 @@ open MeasureTheory
 
 namespace Def67Support
 
-open Def66RealSupport
-
-noncomputable def textbookIntegral {Ω : Type*} [MeasurableSpace Ω] (P : Measure Ω)
+noncomputable abbrev textbookIntegral {Ω : Type*} [MeasurableSpace Ω] (P : Measure Ω)
     (X : Ω → EReal) : Option EReal :=
-  if posLIntegral P X = ⊤ ∧ negLIntegral P X = ⊤ then
-    none
-  else
-    some ((posLIntegral P X : EReal) - (negLIntegral P X : EReal))
+  _root_.textbookIntegral P X
 
 end Def67Support
 
