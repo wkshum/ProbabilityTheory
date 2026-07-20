@@ -67,8 +67,13 @@ import ProbabilityTheory.chapter_03.thm_3_9
 
 import ProbabilityTheory.chapter_04.def_4_1
 import ProbabilityTheory.chapter_04.def_4_2
+import ProbabilityTheory.chapter_04.def_4_2_inverse_image
 import ProbabilityTheory.chapter_04.def_4_3_sup_inf
 import ProbabilityTheory.chapter_04.def_4_3_limsup_liminf
+import ProbabilityTheory.chapter_04.def_4_4_complex_number
+import ProbabilityTheory.chapter_04.def_4_4_complex_operations
+import ProbabilityTheory.chapter_04.def_4_4_complex_random_variable
+import ProbabilityTheory.chapter_04.def_4_4_polar_form
 import ProbabilityTheory.chapter_04.thm_4_1
 import ProbabilityTheory.chapter_04.thm_4_2
 import ProbabilityTheory.chapter_04.thm_4_3
