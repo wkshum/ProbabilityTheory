@@ -4,7 +4,7 @@ import ProbabilityTheory.chapter_06.def_6_2
 /-
 
   # Example 6.1.2
-
+Lebesgue Integral of a Single Indicator Function
 -/
 
 open MeasureTheory
