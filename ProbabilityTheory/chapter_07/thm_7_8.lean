@@ -1,7 +1,7 @@
 import Mathlib.Tactic
-import ProbabilityTheory.chapter_07.rs_stieltjes_step_support
+import ProbabilityTheory.chapter_01.rs_stieltjes_step_support
 import ProbabilityTheory.chapter_07.thm_7_8_sandwich_support
-import ProbabilityTheory.chapter_07.thm_1_1
+import ProbabilityTheory.chapter_01.thm_1_1
 
 open MeasureTheory Set
 open Topology
@@ -40,15 +40,16 @@ theorem thm_7_8_rs_exists
   have hBelow : BddBelow (gExt '' Icc a b) :=
     (isCompact_Icc.image_of_continuousOn hgExt.continuousOn).bddBelow
   have hDiscFinite : (discontinuitySetOn gExt a b).Finite := by
-    apply Thm11SourceRoute.finite_discontinuitySetOn_of_forall_continuousAt
+    apply Thm11SourceRoute.finite_discontinuitySetOn_of_forall_continuousWithinAt
     intro x hx
-    exact hgExt.continuousAt
-  have hFCont : ∀ ⦃x : ℝ⦄, x ∈ discontinuitySetOn gExt a b → ContinuousAt F x := by
+    exact hgExt.continuousAt.continuousWithinAt
+  have hFCont : ∀ ⦃x : ℝ⦄, x ∈ discontinuitySetOn gExt a b →
+      ContinuousWithinAt F (Icc a b) x := by
     intro x hx
     exfalso
-    exact hx.2 hgExt.continuousAt
+    exact hx.2 hgExt.continuousAt.continuousWithinAt
   have hExt : RSIntegrable gExt F a b :=
-    thm_1_1 hab F.mono hAbove hBelow hDiscFinite hFCont
+    thm_1_1 hab (F.mono.monotoneOn (Icc a b)) hAbove hBelow hDiscFinite hFCont
   refine rsIntegrable_congr_integrand_Icc hExt ?_
   intro x hx
   dsimp [gExt, gIcc]

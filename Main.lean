@@ -127,7 +127,7 @@ import ProbabilityTheory.chapter_07.thm_7_4
 import ProbabilityTheory.chapter_07.thm_7_5
 import ProbabilityTheory.chapter_07.thm_7_6
 import ProbabilityTheory.chapter_07.thm_7_7
---import ProbabilityTheory.chapter_07.thm_7_8
+import ProbabilityTheory.chapter_07.thm_7_8
 --import ProbabilityTheory.chapter_07.thm_7_9
 
 import ProbabilityTheory.chapter_07.thm_7_10
